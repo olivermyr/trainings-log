@@ -246,7 +246,8 @@ function ExerciseBlock({
   onCompleted: (remainingInItem: number) => void;
   onOpenTimed: (setId: string) => void;
 }) {
-  const { item, exercise: ex, sets, previous } = entry;
+  const { item, exercise: ex, sets, previous, prs } = entry;
+  const prSetIds = new Set(prs.map((p) => p.setId).filter(Boolean));
   const done = sets.filter((s) => s.completedAt != null).length;
   const allDone = sets.length > 0 && done === sets.length;
   const suggestion = previous ? progressionSuggestion(ex, previous.sets) : null;
@@ -266,6 +267,7 @@ function ExerciseBlock({
             {previous && !expanded && <> · Last {summarizeSets(ex, previous.sets)}</>}
           </div>
         </div>
+        {prs.length > 0 && <span className="pr-chip">PR</span>}
         <span className={`ex-progress num${allDone ? ' done' : ''}`}>{allDone ? '✓' : `${done}/${sets.length}`}</span>
       </button>
 
@@ -303,6 +305,7 @@ function ExerciseBlock({
                 set={s}
                 exercise={ex}
                 prev={previous ? previousFor(previous.sets, s.position, s.side) : undefined}
+                isPR={prSetIds.has(s.id)}
                 onCompleted={() => onCompleted(sets.filter((x) => x.completedAt == null && x.id !== s.id).length)}
                 onOpenTimed={() => onOpenTimed(s.id)}
               />
@@ -370,10 +373,12 @@ function SetRow({
   prev,
   onCompleted,
   onOpenTimed,
+  isPR,
 }: {
   set: WorkoutSet;
   exercise: Exercise;
   prev: ReturnType<typeof previousFor>;
+  isPR: boolean;
   onCompleted: () => void;
   onOpenTimed: () => void;
 }) {
@@ -406,7 +411,10 @@ function SetRow({
 
   return (
     <div className={`set-row${completed ? ' completed' : ''}${editing ? ' editing' : ''}`}>
-      <span className="set-num num">{label}</span>
+      <span className={`set-num num${isPR ? ' pr' : ''}`}>
+        {label}
+        {isPR && <span className="pr-mark">PR</span>}
+      </span>
       <span className="set-prev num">{prevLabel(ex, prev)}</span>
       {locked ? (
         <button className="set-locked num" onClick={() => setEditing(true)} aria-label={`Edit set ${label}`}>

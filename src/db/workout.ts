@@ -273,3 +273,40 @@ export async function discardWorkout(workoutId: string, database: TrainingsDB = 
     await database.workouts.update(workoutId, { deletedAt: now, updatedAt: now });
   });
 }
+
+function isBefore(w: Workout, ref: Pick<Workout, 'date' | 'startedAt'>) {
+  return w.date < ref.date || (w.date === ref.date && (w.finishedAt ?? w.startedAt) <= ref.startedAt);
+}
+
+/** All completed earlier sessions of an exercise (one array of performed sets per workout). */
+export async function getExerciseSessions(
+  exerciseId: string,
+  ref: Pick<Workout, 'id' | 'date' | 'startedAt'> | null,
+  database: TrainingsDB = db,
+): Promise<WorkoutSet[][]> {
+  const items = (await database.workoutItems.where('exerciseId').equals(exerciseId).toArray()).filter(
+    (i) => alive(i) && i.workoutId !== ref?.id,
+  );
+  const workouts = new Map(
+    (await database.workouts.bulkGet([...new Set(items.map((i) => i.workoutId))]))
+      .filter((w): w is Workout => !!w && alive(w) && w.status === 'done' && (!ref || isBefore(w, ref)))
+      .map((w) => [w.id, w]),
+  );
+  const out: WorkoutSet[][] = [];
+  for (const it of items) {
+    if (!workouts.has(it.workoutId)) continue;
+    const sets = performedSets(await database.sets.where('workoutItemId').equals(it.id).toArray());
+    if (sets.length) out.push(sets);
+  }
+  return out;
+}
+
+/** The last finished workout of the same plan day before `ref`. */
+export async function getPreviousSameDay(ref: Workout, database: TrainingsDB = db): Promise<Workout | null> {
+  if (!ref.planDayId) return null;
+  const candidates = (await database.workouts.where('planDayId').equals(ref.planDayId).toArray()).filter(
+    (w) => alive(w) && w.status === 'done' && w.id !== ref.id && isBefore(w, ref),
+  );
+  candidates.sort((a, b) => (a.date === b.date ? (b.finishedAt ?? 0) - (a.finishedAt ?? 0) : a.date < b.date ? 1 : -1));
+  return candidates[0] ?? null;
+}

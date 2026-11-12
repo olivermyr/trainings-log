@@ -1,6 +1,6 @@
 # PROJECT_STATUS – Trainings Log
 
-_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 5_
+_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 6_
 
 Konzept: siehe `KONZEPT.md` im Claude-Projekt „Trainings Log“ (Phase 2, freigegeben).
 
@@ -109,17 +109,42 @@ public/     icon.svg + PNG-Icons
 - Today schlägt danach korrekt Day 3 vor
 - Live-Training → Zusammenfassung
 
+## Zyklus-Anker (Nutzerwunsch 12.11.) ✅
+- Profile → „Set Today's Workout“ speichert `settings.cycleAnchor = {date, planDayId}`.
+- `projectSchedule(..., anchor)`: Der Anker gilt, bis ein Training an einem späteren Datum geloggt wird. Ein Training am Anker-Tag selbst übernimmt wieder.
+- Nutzer will heute (Do 12.11.) Day 4, damit der Sonntag Ruhetag ist. Das muss er selbst in der App setzen, weil die Daten lokal auf seinem Gerät liegen.
+
+## AP6 – Personal Records & Zusammenfassung ✅
+**Implementiert**
+- `domain/records.ts`:
+  - `e1rm` (Epley)
+  - `detectPRs(ex, previousSessions, current)` erkennt `weight`, `e1rm`, `repsAtWeight` (nur Gewichte, die schon einmal verwendet wurden), `volume` (pro Einheit), `reps` (Körpergewicht) und `time` (pro Zusatzgewicht; ein neues höheres Zusatzgewicht zählt als `weight`)
+  - Die erste Einheit einer Übung setzt nur die Basis und erzeugt keine PRs. Jede PR-Art wird genau dem besten Satz zugeordnet.
+  - `sessionScore` für den Vergleich mit dem letzten Mal
+- `db/workout.ts`: `getExerciseSessions(exerciseId, ref)` (nur Einheiten vor dem Training), `getPreviousSameDay(ref)`
+- `useWorkoutDetail` liefert pro Übung `prs` und `compare` (letztes Training desselben Plantags). Live-Query: Das PR-Badge erscheint direkt nach ✓.
+- Im Training: kleines orangefarbenes „PR“ unter der Satznummer, PR-Chip im Übungskopf
+- Zusammenfassung und Detailansicht:
+  - Volumen ±% gegenüber dem letzten gleichen Trainingstag
+  - Liste der PRs pro Übung mit altem Wert
+  - ↑ Better / ↓ Lower / = Same pro Übung
+
+**Tests:** 43/43 grün. Ende-zu-Ende geprüft: Training nachgetragen → Live-Training mit mehr Gewicht → PR-Badge im Training → Zusammenfassung zeigt drei PRs und +7 %.
+
 ## Offen
 - Supabase-Projekt noch nicht angelegt (AP9)
 - Progress zeigt bis AP7 nur einen leeren Zustand
-- Die Zusammenfassung zeigt noch keine PRs und keinen Vergleich mit dem letzten gleichen Tag (AP6)
-- „Last“ bei der Stoppuhr ist der letzte Wert; ein echter PR folgt mit AP6
+- Die Stoppuhr zeigt „Last“ (letzter Wert), nicht den Bestwert
 
 ## Deployment
 GitHub `olivermyr/trainings-log` → Actions-Workflow (Tests, Build) → GitHub Pages: https://olivermyr.github.io/trainings-log/
 
 ## Nächster Schritt
-**AP6 – PRs & Zusammenfassung**:
-- PR-Erkennung: schwerstes Gewicht, meiste Wiederholungen bei einem Gewicht, bestes e1RM (Epley), höchstes Volumen pro Einheit, längste Zeit bei einem Gewicht, meiste Wiederholungen mit Körpergewicht
-- PR-Badge am Satz im Live-Training
-- Zusammenfassung mit PRs und Vergleich mit dem letzten gleichen Trainingstag
+**AP7 – Analytics (Tab Progress)**:
+- Übungsliste, Übungsdetail mit Verlauf von e1RM, Top-Satz und Wiederholungen
+- Zeitraumvergleich (4 Wochen gegen die 4 Wochen davor)
+- Volumen pro Training und pro Woche
+- gewichtete Sätze pro Muskelgruppe und Woche (ohne Soll-Linie)
+- Slow-Motion-Zeitverlauf mit Ziellinie 5:00
+- Konstanz: Trainings pro Woche, durchschnittliche Dauer
+- Eigene SVG-Charts, vorher den Skill `dataviz` lesen

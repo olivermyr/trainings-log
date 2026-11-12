@@ -5,7 +5,8 @@ import type { Workout, WorkoutItem, WorkoutSet } from '../domain/types';
 import { sortSets } from '../domain/workout';
 import { exerciseVolume } from '../domain/stats';
 import type { CycleAnchor } from '../domain/cycle';
-import { getActiveWorkout, getPreviousPerformance, type PreviousPerformance } from './workout';
+import { getActiveWorkout, getExerciseSessions, getPreviousPerformance, getPreviousSameDay, type PreviousPerformance } from './workout';
+import { detectPRs, sessionScore, type PR } from '../domain/records';
 
 const alive = <T extends { deletedAt: number | null }>(x: T) => x.deletedAt == null;
 
@@ -94,12 +95,22 @@ export interface WorkoutEntry {
   exercise: Exercise;
   sets: WorkoutSet[];
   previous: PreviousPerformance | null;
+  /** Records set in this workout, compared with all earlier sessions. */
+  prs: PR[];
+}
+
+export interface DayComparison {
+  workout: Workout;
+  volume: number;
+  /** exerciseId → session score of the previous same-day workout */
+  scores: Map<string, number>;
 }
 
 export interface WorkoutDetail {
   workout: Workout;
   planDay: PlanDay | null;
   entries: WorkoutEntry[];
+  compare: DayComparison | null;
 }
 
 export function useWorkoutDetail(workoutId: string | undefined): WorkoutDetail | null | undefined {
@@ -117,9 +128,10 @@ export function useWorkoutDetail(workoutId: string | undefined): WorkoutDetail |
       if (!exercise) continue;
       const sets = sortSets((await db.sets.where('workoutItemId').equals(item.id).toArray()).filter(alive));
       const previous = await getPreviousPerformance(exercise.id, workout);
-      entries.push({ item, exercise, sets, previous });
+      const prs = detectPRs(exercise, await getExerciseSessions(exercise.id, workout), sets);
+      entries.push({ item, exercise, sets, previous, prs });
     }
-    return { workout, planDay, entries };
+    return { workout, planDay, entries, compare: await compareWithPrevious(workout) };
   }, [workoutId]);
 }
 
@@ -173,4 +185,22 @@ export function useCycleAnchor(): CycleAnchor | null | undefined {
 
 export async function setCycleAnchor(anchor: CycleAnchor) {
   await db.settings.put({ key: 'cycleAnchor', value: anchor, updatedAt: Date.now() });
+}
+
+async function compareWithPrevious(workout: Workout): Promise<DayComparison | null> {
+  const prev = await getPreviousSameDay(workout);
+  if (!prev) return null;
+  const items = (await db.workoutItems.where('workoutId').equals(prev.id).toArray()).filter(alive);
+  let volume = 0;
+  const scores = new Map<string, number>();
+  for (const it of items) {
+    const ex = await db.exercises.get(it.exerciseId);
+    if (!ex) continue;
+    const sets = (await db.sets.where('workoutItemId').equals(it.id).toArray()).filter(
+      (s) => alive(s) && s.completedAt != null,
+    );
+    volume += exerciseVolume(ex, sets);
+    scores.set(ex.id, sessionScore(ex, sets));
+  }
+  return { workout: prev, volume, scores };
 }
