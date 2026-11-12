@@ -1,0 +1,39 @@
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { createHashRouter, RouterProvider } from 'react-router-dom';
+import { registerSW } from 'virtual:pwa-register';
+import { requestPersistentStorage } from './db/db';
+import { seedIfEmpty } from './db/seed';
+import { Shell } from './components/Shell';
+import { Today } from './screens/Today';
+import { History, Progress } from './screens/Placeholders';
+import { PlanDayDetail, Profile } from './screens/Profile';
+import './styles/tokens.css';
+import './styles/base.css';
+
+// Hash routing: works on any static host without server rewrites.
+const router = createHashRouter([
+  {
+    element: <Shell />,
+    children: [
+      { path: '/', element: <Today /> },
+      { path: '/history', element: <History /> },
+      { path: '/progress', element: <Progress /> },
+      { path: '/profile', element: <Profile /> },
+      { path: '/profile/day/:id', element: <PlanDayDetail /> },
+    ],
+  },
+]);
+
+async function boot() {
+  await seedIfEmpty();
+  void requestPersistentStorage();
+  registerSW({ immediate: true });
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <RouterProvider router={router} />
+    </StrictMode>,
+  );
+}
+
+void boot();

@@ -1,0 +1,65 @@
+:root {
+  color-scheme: dark;
+
+  /* Surfaces – stepped like iOS dark grouped backgrounds */
+  --bg: #000000;
+  --surface-1: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --surface-3: #3a3a3c;
+  --separator: rgba(84, 84, 88, 0.6);
+
+  /* Text */
+  --text: #ffffff;
+  --text-2: rgba(235, 235, 245, 0.6);
+  --text-3: rgba(235, 235, 245, 0.3);
+
+  /* Semantic */
+  --accent: #ff9f0a;
+  --accent-pressed: #e08a00;
+  --accent-soft: rgba(255, 159, 10, 0.16);
+  --done: #30d158;
+  --done-soft: rgba(48, 209, 88, 0.16);
+  --danger: #ff453a;
+
+  /* Training day colours */
+  --day-arms: #0a84ff;
+  --day-push: #bf5af2;
+  --day-legs: #63e6e2;
+
+  /* Type */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
+  --fs-large-title: 34px;
+  --fs-title: 22px;
+  --fs-headline: 17px;
+  --fs-body: 17px;
+  --fs-subhead: 15px;
+  --fs-footnote: 13px;
+  --fs-caption: 12px;
+
+  /* Spacing (4pt grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+
+  --radius: 12px;
+  --radius-lg: 16px;
+  --touch: 44px;
+  --touch-lg: 56px;
+
+  --tabbar-h: 50px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur: 240ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur: 0ms;
+  }
+}
