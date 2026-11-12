@@ -285,7 +285,7 @@ export function BodyProfileSection() {
           />
         </FieldRow>
       </div>
-      <p className="footnote">Stored on this device only.</p>
+      <p className="footnote">Part of your backup when signed in.</p>
     </section>
   );
 }

@@ -18,6 +18,7 @@ import { IconChevronRight } from '../components/Icons';
 import { BackButton } from '../components/BackButton';
 import { CommitInput, Segmented, Sheet } from '../components/Form';
 import { BodyProfileSection } from './Body';
+import { AccountSection } from './Account';
 import './profile.css';
 
 const COLORS: { value: DayColor; label: string }[] = [
@@ -96,6 +97,8 @@ export function Profile() {
       </Sheet>
 
       <BodyProfileSection />
+
+      <AccountSection />
 
       <section className="section">
         <p className="eyebrow">Library</p>

@@ -77,3 +77,44 @@
   font-size: var(--fs-footnote);
   color: var(--text-2);
 }
+
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--done);
+  flex-shrink: 0;
+}
+
+.sync-dot.syncing {
+  background: var(--accent);
+  animation: fade 1s ease-in-out infinite alternate;
+}
+
+.sync-dot.offline {
+  background: var(--text-3);
+}
+
+.sync-dot.error {
+  background: var(--danger);
+}
+
+.sync-error {
+  color: var(--danger);
+}
+
+.row.action:disabled {
+  color: var(--text-3);
+}
+
+.form-error {
+  color: var(--danger);
+  font-size: var(--fs-footnote);
+  margin: 0 0 var(--s-3);
+}
+
+.code-field {
+  font-size: 28px;
+  letter-spacing: 6px;
+  text-align: center;
+}

@@ -4,6 +4,7 @@ import { createHashRouter, RouterProvider } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { requestPersistentStorage } from './db/db';
 import { seedIfEmpty } from './db/seed';
+import { startSync } from './sync';
 import { Shell } from './components/Shell';
 import { Today } from './screens/Today';
 import { ExerciseProgress, Progress } from './screens/Progress';
@@ -47,6 +48,7 @@ async function boot() {
   await seedIfEmpty();
   void requestPersistentStorage();
   registerSW({ immediate: true });
+  startSync();
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <RouterProvider router={router} />

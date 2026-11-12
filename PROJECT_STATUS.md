@@ -1,6 +1,6 @@
 # PROJECT_STATUS – Trainings Log
 
-_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 8_
+_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 9_
 
 Konzept: siehe `KONZEPT.md` im Claude-Projekt „Trainings Log“ (Phase 2, freigegeben).
 
@@ -15,7 +15,7 @@ Konzept: siehe `KONZEPT.md` im Claude-Projekt „Trainings Log“ (Phase 2, frei
 - Zyklus: D1…D6 → Ruhetag. Ausgelassene Tage verschieben den Plan. Der Ruhetag ist der erste Kalendertag nach D6.
 
 ## Stack
-React 19 + TypeScript + Vite 8 · vite-plugin-pwa · Dexie (IndexedDB) · react-router (Hash-Routing) · Vitest + fake-indexeddb. Geplant: Supabase (Auth per E-Mail-Code + Sync).
+React 19 + TypeScript + Vite 8 · vite-plugin-pwa · Dexie (IndexedDB) · react-router (Hash-Routing) · Vitest + fake-indexeddb · Supabase (Auth per E-Mail-Code + Sync).
 
 ## Struktur
 ```
@@ -173,17 +173,41 @@ public/     icon.svg + PNG-Icons
 
 **Tests:** 60/60 grün. Ende-zu-Ende geprüft: Profil setzen, drei Messungen loggen, ungültige Schlafeingabe abgefangen, Detail-Chart
 
+## AP9 – Cloud-Backup, Login, Export ✅
+**Supabase**
+- Projekt `trainings-log`, ref `grsxgrzbatvubvcsotyd`, Region eu-central-1, Organisation „Automatisierung“, Free Plan
+- **Eine generische Tabelle** `public.records (user_id, table_name, id, data jsonb, updated_at bigint, deleted_at, server_ts)`, PK `(user_id, table_name, id)`
+  - Begründung: Die Gerätedatenbank ist die Quelle der Wahrheit, die Cloud dient als Kopie und Sync. Ein JSONB-Spiegel braucht bei Schemaänderungen keine Migrationen.
+- RLS: select, insert und update nur bei `user_id = auth.uid()`; kein delete, weil gelöschte Datensätze als Soft-Delete übertragen werden
+- Trigger `records_touch` setzt bei jedem Update `server_ts`. RPC `push_records(jsonb)` macht einen Batch-Upsert; ein Datensatz wird nur ersetzt, wenn er strikt neuer ist (Last-Write-Wins).
+- Per SQL geprüft (mit Rollback): ein veralteter Push wird ignoriert, Nutzer B sieht 0 Zeilen von Nutzer A. Der Security-Advisor meldet keine Probleme.
+- **Manuell vom Nutzer erledigt (Dashboard):** E-Mail-Templates „Magic Link“ und „Confirm signup“ enthalten `{{ .Token }}` (Code statt Link)
+
+**App**
+- `sync/engine.ts` (testbar mit injiziertem Remote):
+  - Push: alle lokalen Zeilen mit `updatedAt > lastPush`
+  - Pull: alle Zeilen mit `server_ts > lastPull`, lokal nur übernommen, wenn sie neuer sind
+  - Erste Synchronisierung eines Geräts: Hat das Konto schon Daten und das Gerät noch keine Trainings, wird der lokale Startplan verworfen. So entstehen auf dem MacBook keine Duplikate.
+  - Synchronisierte Einstellungen nur `cycleAnchor` und `bodyProfile`; Timer, Seed-Flag und `sync.state` bleiben auf dem Gerät
+- `sync/index.ts`: Sync startet nach lokalen Änderungen (Dexie-Hooks, 2,5 s Verzögerung), bei Fokus, bei `online` und alle 2 Minuten. Mutex, Status über `useSyncStatus`; Schreibvorgänge aus dem Pull lösen keinen neuen Push aus (`applyingRemote`).
+- `sync/supabase.ts`: Client mit Publishable Key (öffentlich gedacht, Schutz über RLS), Login per OTP-Code (`signInWithOtp` → `verifyOtp` type `email`)
+- `sync/backup.ts`: JSON-Backup (alle Tabellen) und Wiederherstellung (Merge, der neuere Datensatz gewinnt), CSV mit einer Zeile pro Satz. Auf dem iPhone über das Teilen-Menü, sonst als Download.
+- `screens/Account.tsx` (Profile): Abschnitte Cloud backup (Login, Status, Sync Now, Sign Out) und Data (Export, Restore)
+
+**Tests:** 67/67 grün, darunter Sync zwischen zwei Geräten mit Fake-Remote: Erstsync ohne Duplikate, Änderungen in beide Richtungen, Last-Write-Wins, Soft-Deletes, Filter für Einstellungen, nur geänderte Zeilen werden gepusht. JSON-Roundtrip und CSV getestet.
+**Nicht testbar aus der Sandbox:** echter Netzwerkzugriff auf supabase.co (Proxy blockiert). Der Live-Login muss beim Nutzer verifiziert werden.
+
 ## Offen
-- Supabase-Projekt noch nicht angelegt (AP9)
+- Live-Test von Login und Sync auf dem iPhone durch den Nutzer
 - Die Stoppuhr zeigt „Last“ (letzter Wert), nicht den Bestwert
+- Bundle 217 kB gzip (Supabase-Client); Code-Splitting wäre möglich, ist aber nicht nötig, weil alles vorab gecacht wird
 
 ## Deployment
 GitHub `olivermyr/trainings-log` → Actions-Workflow (Tests, Build) → GitHub Pages: https://olivermyr.github.io/trainings-log/
 
 ## Nächster Schritt
-**AP9 – Supabase-Sync, Login, Export**:
-- Supabase-Projekt über den MCP-Connector anlegen (Region EU), Tabellen spiegeln das Dexie-Schema
-- RLS: `user_id = auth.uid()`
-- Login mit 6-stelligem E-Mail-Code (OTP), kein Magic Link
-- Outbox-/`updatedAt`-Sync: Push der lokalen Änderungen seit dem letzten Sync, Pull der Remote-Änderungen; der neuere `updatedAt` gewinnt
-- Export als JSON (vollständig) und CSV (Sätze); Import von JSON als Wiederherstellung
+**AP10 – Testing, Feinschliff, Abschluss**:
+- systematischer Durchlauf aller Abläufe (iPhone- und Desktop-Viewport), Rückmeldungen des Nutzers aus echten Trainings einarbeiten
+- Stoppuhr: Bestwert statt letztem Wert
+- UX-Feinschliff, Barrierefreiheit (Fokus, Labels), Performance
+- README für das Repo
