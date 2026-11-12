@@ -6,7 +6,7 @@ import { requestPersistentStorage } from './db/db';
 import { seedIfEmpty } from './db/seed';
 import { Shell } from './components/Shell';
 import { Today } from './screens/Today';
-import { Progress } from './screens/Placeholders';
+import { ExerciseProgress, Progress } from './screens/Progress';
 import { PlanDayDetail, Profile } from './screens/Profile';
 import { ExerciseEditor, ExerciseList } from './screens/Exercises';
 import { WorkoutEditScreen, WorkoutScreen } from './screens/Workout';
@@ -27,6 +27,7 @@ const router = createHashRouter([
       { path: '/history/workout/:id', element: <WorkoutDetail /> },
       { path: '/summary/:id', element: <WorkoutDetail summary /> },
       { path: '/progress', element: <Progress /> },
+      { path: '/progress/exercise/:id', element: <ExerciseProgress /> },
       { path: '/profile', element: <Profile /> },
       { path: '/profile/day/:id', element: <PlanDayDetail /> },
       { path: '/profile/exercises', element: <ExerciseList /> },
@@ -36,6 +37,11 @@ const router = createHashRouter([
 ]);
 
 async function boot() {
+  if (import.meta.env.DEV) {
+    // Test hooks for local end-to-end scripts only; stripped from production builds.
+    const api = await import('./db/workout');
+    Object.assign(window, { __db: (await import('./db/db')).db, __api: api });
+  }
   await seedIfEmpty();
   void requestPersistentStorage();
   registerSW({ immediate: true });

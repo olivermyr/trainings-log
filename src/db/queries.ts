@@ -5,6 +5,7 @@ import type { Workout, WorkoutItem, WorkoutSet } from '../domain/types';
 import { sortSets } from '../domain/workout';
 import { exerciseVolume } from '../domain/stats';
 import type { CycleAnchor } from '../domain/cycle';
+import type { LoggedWorkout } from '../domain/analytics';
 import { getActiveWorkout, getExerciseSessions, getPreviousPerformance, getPreviousSameDay, type PreviousPerformance } from './workout';
 import { detectPRs, sessionScore, type PR } from '../domain/records';
 
@@ -203,4 +204,29 @@ async function compareWithPrevious(workout: Workout): Promise<DayComparison | nu
     scores.set(ex.id, sessionScore(ex, sets));
   }
   return { workout: prev, volume, scores };
+}
+
+// ---------- Analytics ----------
+
+/** All finished workouts with their completed working sets, oldest first. */
+export function useLoggedWorkouts(): LoggedWorkout[] | undefined {
+  return useLiveQuery(async () => {
+    const workouts = (await db.workouts.where('status').equals('done').toArray())
+      .filter(alive)
+      .sort((a, b) => (a.date === b.date ? a.startedAt - b.startedAt : a.date < b.date ? -1 : 1));
+    const exercises = new Map((await db.exercises.toArray()).map((e) => [e.id, e]));
+    const items = (await db.workoutItems.toArray()).filter(alive);
+    const sets = (await db.sets.toArray()).filter((s) => alive(s) && s.completedAt != null && !s.isWarmup);
+    const setsByItem = new Map<string, WorkoutSet[]>();
+    for (const s of sets) setsByItem.set(s.workoutItemId, [...(setsByItem.get(s.workoutItemId) ?? []), s]);
+    const itemsByWorkout = new Map<string, WorkoutItem[]>();
+    for (const it of items) itemsByWorkout.set(it.workoutId, [...(itemsByWorkout.get(it.workoutId) ?? []), it]);
+    return workouts.map((workout) => ({
+      workout,
+      entries: (itemsByWorkout.get(workout.id) ?? [])
+        .sort((a, b) => a.position - b.position)
+        .map((it) => ({ exercise: exercises.get(it.exerciseId)!, sets: sortSets(setsByItem.get(it.id) ?? []) }))
+        .filter((e) => e.exercise && e.sets.length > 0),
+    }));
+  }, []);
 }

@@ -1,0 +1,44 @@
+.progress-switch {
+  margin-bottom: var(--s-6);
+}
+
+.progress-switch .segmented,
+.chart-controls .segmented {
+  width: 100%;
+}
+
+.chart-controls {
+  margin-bottom: var(--s-4);
+  overflow-x: auto;
+}
+
+.chart-caption {
+  margin: 0 0 var(--s-5);
+  font-size: var(--fs-footnote);
+  color: var(--text-2);
+}
+
+.chart-caption strong {
+  color: var(--text);
+}
+
+.range-row {
+  display: flex;
+  justify-content: center;
+  margin: var(--s-4) 0 var(--s-8);
+}
+
+.stat-sub {
+  font-size: var(--fs-footnote);
+  color: var(--text-2);
+}
+
+.rec-value {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.progress-switch + .stats,
+.screen-enter > .stats {
+  margin-bottom: var(--s-8);
+}

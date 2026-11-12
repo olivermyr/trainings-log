@@ -1,6 +1,6 @@
 # PROJECT_STATUS – Trainings Log
 
-_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 6_
+_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 7_
 
 Konzept: siehe `KONZEPT.md` im Claude-Projekt „Trainings Log“ (Phase 2, freigegeben).
 
@@ -131,20 +131,37 @@ public/     icon.svg + PNG-Icons
 
 **Tests:** 43/43 grün. Ende-zu-Ende geprüft: Training nachgetragen → Live-Training mit mehr Gewicht → PR-Badge im Training → Zusammenfassung zeigt drei PRs und +7 %.
 
+## AP7 – Analytics (Progress) ✅
+**Implementiert**
+- `domain/analytics.ts`:
+  - `exerciseSeries` (pro Einheit: e1RM, Top-Satz, Wiederholungen, Volumen, beste Zeit)
+  - `comparePeriods` (Bestwert der letzten 4 Wochen gegen die 4 Wochen davor)
+  - `weeklyStats` (inklusive leerer Wochen, Durchschnittsdauer nur bei echten Zeiten > 5 min)
+  - `muscleSets`, `muscleSetsByWeek` (gewichtet; einseitige L+R zählen als 1 Satz)
+- `useLoggedWorkouts()`: ein Loader für alle Analytics (erledigte Arbeitssätze)
+- `components/Chart.tsx` mit eigenen SVG-Charts, umgesetzt nach dem dataviz-Skill:
+  - LineChart: 2px-Linie, Crosshair und Tooltip, Tastatur ←/→, optionale Ziellinie; Marker nur bei ≤ 16 Punkten, sonst nur am Endpunkt
+  - ColumnChart: Säulen ≤ 24px mit 4px runder Oberkante, Tooltip pro Säule
+  - HBarChart: Wert am Balkenende
+  - `niceTicks` mit den Modi `any`, `integer` und `time` (Schritte von 15/30/60 s)
+  - Nur eine Datenreihe pro Chart, Farbe immer Orange, Text nie in der Datenfarbe, eine Y-Achse
+- `screens/Progress.tsx`, Ansicht per Segmented-Control:
+  - Exercises: Liste mit dem letzten Wert, sortiert nach dem letzten Training. Übungsdetail `/progress/exercise/:id` mit Kennzahlen, Metrik-Umschalter (Est. 1RM / Top weight / Top reps / Volume; Time / Weight; Best set / Total reps), Vergleich 4 gegen 4 Wochen, Zeitraum, Bestwerte pro Gewicht, Liste der Einheiten als Tabellenansicht mit Link zum Training
+  - Volume: Kennzahlen (diese Woche, Workouts, Durchschnittsdauer), Volumen pro Woche, Workouts pro Woche, Volumen pro Training
+  - Muscles: Durchschnitt nur über **abgeschlossene** Wochen, horizontale Balken ohne Soll-Linie, Tipp auf eine Muskelgruppe zeigt deren Wochenverlauf
+- Testhooks `window.__db` und `__api` nur im Dev-Server (`import.meta.env.DEV`), nicht im Production-Build
+
+**Tests:** 51/51 grün. Visuell geprüft mit rund 70 generierten Trainings über 12 Wochen im Dev-Server (der Seed läuft nur im Test-Browser, nie im Produktionscode).
+
 ## Offen
 - Supabase-Projekt noch nicht angelegt (AP9)
-- Progress zeigt bis AP7 nur einen leeren Zustand
 - Die Stoppuhr zeigt „Last“ (letzter Wert), nicht den Bestwert
 
 ## Deployment
 GitHub `olivermyr/trainings-log` → Actions-Workflow (Tests, Build) → GitHub Pages: https://olivermyr.github.io/trainings-log/
 
 ## Nächster Schritt
-**AP7 – Analytics (Tab Progress)**:
-- Übungsliste, Übungsdetail mit Verlauf von e1RM, Top-Satz und Wiederholungen
-- Zeitraumvergleich (4 Wochen gegen die 4 Wochen davor)
-- Volumen pro Training und pro Woche
-- gewichtete Sätze pro Muskelgruppe und Woche (ohne Soll-Linie)
-- Slow-Motion-Zeitverlauf mit Ziellinie 5:00
-- Konstanz: Trainings pro Woche, durchschnittliche Dauer
-- Eigene SVG-Charts, vorher den Skill `dataviz` lesen
+**AP8 – Body Metrics** (Progress, vierte Ansicht „Body“; Stammdaten im Profil):
+- Größe, Geburtsdatum, Geschlecht
+- Verlaufswerte: Gewicht, KFA, Umfänge (+ eigene Werte), Ruhepuls, HRV, Schlaf
+- schnelles Eingabeformular, Verlaufs-Charts mit `LineChart`
