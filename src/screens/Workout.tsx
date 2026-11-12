@@ -14,11 +14,15 @@ import {
   updateWorkoutItemNote,
 } from '../db/workout';
 import { dayLabel, dayMonth, formatDuration, formatKg, targetLabel, weekdayShort } from '../domain/format';
-import { parseDuration, parseNumber, previousFor, progressionSuggestion } from '../domain/workout';
+import { parseNumber, previousFor, progressionSuggestion } from '../domain/workout';
 import type { Exercise, WorkoutSet } from '../domain/types';
 import { CommitInput, Sheet } from '../components/Form';
 import { IconChevronDown } from '../components/Icons';
 import { useNow } from '../components/useNow';
+import { useWakeLock } from '../components/useWakeLock';
+import { RestPanel } from '../components/RestPanel';
+import { maybeStartRestAfter, useStopwatch } from '../db/timers';
+import { StopwatchOverlay } from './Stopwatch';
 import './workout.css';
 
 export function WorkoutScreen() {
@@ -29,6 +33,13 @@ export function WorkoutScreen() {
   const [finishing, setFinishing] = useState(false);
   const [adding, setAdding] = useState(false);
   const now = useNow(1000);
+  const sw = useStopwatch();
+  const [timedSetId, setTimedSetId] = useState<string | null>(null);
+  useWakeLock(!!active);
+  // Keep the overlay open after the stopwatch stops, even if the app was reloaded while it ran.
+  useEffect(() => {
+    if (sw?.setId) setTimedSetId(sw.setId);
+  }, [sw?.setId]);
 
   useEffect(() => {
     if (active === null) navigate('/', { replace: true });
@@ -45,6 +56,12 @@ export function WorkoutScreen() {
 
   if (!active || !detail) return null;
   const { workout, planDay, entries } = detail;
+
+  // A running stopwatch always re-opens its overlay (e.g. after a reload).
+  const overlaySetId = sw?.setId ?? timedSetId;
+  const overlayEntry = overlaySetId ? entries.find((e) => e.sets.some((s) => s.id === overlaySetId)) : undefined;
+  const overlaySet = overlayEntry?.sets.find((s) => s.id === overlaySetId);
+  const expandedEntry = entries.find((e) => e.item.id === expanded);
 
   const openSets = entries.reduce((n, e) => n + e.sets.filter((s) => s.completedAt == null).length, 0);
   const doneSets = entries.reduce((n, e) => n + e.sets.filter((s) => s.completedAt != null).length, 0);
@@ -84,6 +101,7 @@ export function WorkoutScreen() {
             expanded={expanded === entry.item.id}
             onToggle={() => setExpanded(expanded === entry.item.id ? null : entry.item.id)}
             onCompleted={(remaining) => afterComplete(entry.item.id, remaining)}
+            onOpenTimed={setTimedSetId}
           />
         ))}
 
@@ -91,6 +109,25 @@ export function WorkoutScreen() {
           Add Exercise
         </button>
       </div>
+
+      {!overlaySet && (
+        <RestPanel manualSeconds={expandedEntry?.exercise.restSeconds ?? 90} manualLabel={expandedEntry?.exercise.name ?? 'Rest'} />
+      )}
+
+      {overlaySet && overlayEntry && (
+        <StopwatchOverlay
+          set={overlaySet}
+          exercise={overlayEntry.exercise}
+          last={overlayEntry.previous?.sets[0]?.durationS ?? null}
+          onClose={(saved) => {
+            setTimedSetId(null);
+            if (saved) {
+              const remaining = overlayEntry.sets.filter((x) => x.completedAt == null && x.id !== overlaySet.id).length;
+              afterComplete(overlayEntry.item.id, remaining);
+            }
+          }}
+        />
+      )}
 
       <AddExerciseSheet
         open={adding}
@@ -150,11 +187,13 @@ function ExerciseBlock({
   expanded,
   onToggle,
   onCompleted,
+  onOpenTimed,
 }: {
   entry: WorkoutEntry;
   expanded: boolean;
   onToggle: () => void;
   onCompleted: (remainingInItem: number) => void;
+  onOpenTimed: (setId: string) => void;
 }) {
   const { item, exercise: ex, sets, previous } = entry;
   const done = sets.filter((s) => s.completedAt != null).length;
@@ -214,6 +253,7 @@ function ExerciseBlock({
                 exercise={ex}
                 prev={previous ? previousFor(previous.sets, s.position, s.side) : undefined}
                 onCompleted={() => onCompleted(sets.filter((x) => x.completedAt == null && x.id !== s.id).length)}
+                onOpenTimed={() => onOpenTimed(s.id)}
               />
             ))}
           </div>
@@ -278,11 +318,13 @@ function SetRow({
   exercise: ex,
   prev,
   onCompleted,
+  onOpenTimed,
 }: {
   set: WorkoutSet;
   exercise: Exercise;
   prev: ReturnType<typeof previousFor>;
   onCompleted: () => void;
+  onOpenTimed: () => void;
 }) {
   const completed = set.completedAt != null;
   const [editing, setEditing] = useState(false);
@@ -299,13 +341,14 @@ function SetRow({
       return;
     }
     if (timed) {
-      if (set.durationS == null) return repsRef.current?.focus();
+      if (set.durationS == null) return onOpenTimed();
     } else {
       if (ex.type === 'weight_reps' && set.weight == null) return weightRef.current?.focus();
       if (set.reps == null) return repsRef.current?.focus();
     }
     (document.activeElement as HTMLElement | null)?.blur();
     await completeSet(set.id);
+    void maybeStartRestAfter(set, ex);
     onCompleted();
   };
 
@@ -331,16 +374,9 @@ function SetRow({
             onChange={(weight) => updateSet(set.id, { weight })}
           />
           {timed ? (
-            <NumberField
-              inputRef={repsRef}
-              label={`Set ${label} time`}
-              value={set.durationS}
-              format={(v) => formatDuration(v)}
-              parse={parseDuration}
-              mode="text"
-              placeholder="m:ss"
-              onChange={(durationS) => updateSet(set.id, { durationS })}
-            />
+            <button className={`time-btn num${set.durationS == null ? ' start' : ''}`} onClick={onOpenTimed} aria-label={`Set ${label} time`}>
+              {set.durationS == null ? 'Start' : formatDuration(set.durationS)}
+            </button>
           ) : (
             <NumberField
               inputRef={repsRef}

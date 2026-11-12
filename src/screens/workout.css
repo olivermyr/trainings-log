@@ -391,3 +391,24 @@
     grid-template-columns: 66px 66px;
   }
 }
+
+.time-btn {
+  grid-column: 4;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: var(--fs-headline);
+  font-weight: 600;
+}
+
+.time-btn.start {
+  background: var(--accent);
+  color: #000;
+}
+
+.mini-time.over {
+  color: #000;
+  background: var(--accent);
+  border-radius: 8px;
+  padding: 2px 10px;
+}
