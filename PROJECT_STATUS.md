@@ -181,7 +181,7 @@ public/     icon.svg + PNG-Icons
 - RLS: select, insert und update nur bei `user_id = auth.uid()`; kein delete, weil gelöschte Datensätze als Soft-Delete übertragen werden
 - Trigger `records_touch` setzt bei jedem Update `server_ts`. RPC `push_records(jsonb)` macht einen Batch-Upsert; ein Datensatz wird nur ersetzt, wenn er strikt neuer ist (Last-Write-Wins).
 - Per SQL geprüft (mit Rollback): ein veralteter Push wird ignoriert, Nutzer B sieht 0 Zeilen von Nutzer A. Der Security-Advisor meldet keine Probleme.
-- **Manuell vom Nutzer erledigt (Dashboard):** E-Mail-Templates „Magic Link“ und „Confirm signup“ enthalten `{{ .Token }}` (Code statt Link)
+- **Muss der Nutzer im Dashboard erledigen (Stand 12.11. offen):** E-Mail-Templates „Magic Link“ und „Confirm signup“ enthalten `{{ .Token }}` (Code statt Link)
 
 **App**
 - `sync/engine.ts` (testbar mit injiziertem Remote):
