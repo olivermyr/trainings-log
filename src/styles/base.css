@@ -305,3 +305,8 @@ a.row:active {
     transform: none;
   }
 }
+
+/* Leave room for the workout mini bar */
+.main:has(+ .mini-bar) {
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 96px);
+}

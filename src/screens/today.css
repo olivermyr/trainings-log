@@ -82,3 +82,15 @@
   font-weight: 700;
   margin: 0 0 var(--s-4);
 }
+
+.today-cta {
+  margin-bottom: var(--s-4);
+}
+
+.link-btn {
+  display: block;
+  margin: var(--s-3) auto 0;
+  min-height: var(--touch);
+  color: var(--accent);
+  font-size: var(--fs-subhead);
+}

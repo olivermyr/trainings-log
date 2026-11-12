@@ -1,6 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { Exercise, PlanDay, PlanDayItem } from '../domain/types';
 import { db } from './db';
+import type { Workout, WorkoutItem, WorkoutSet } from '../domain/types';
+import { sortSets } from '../domain/workout';
+import { getActiveWorkout, getPreviousPerformance, type PreviousPerformance } from './workout';
 
 const alive = <T extends { deletedAt: number | null }>(x: T) => x.deletedAt == null;
 
@@ -75,4 +78,45 @@ export function useLastDoneWorkout() {
 
 export function useWorkoutCount() {
   return useLiveQuery(async () => (await db.workouts.where('status').equals('done').toArray()).filter(alive).length, []);
+}
+
+// ---------- Workouts ----------
+
+
+export function useActiveWorkout(): Workout | null | undefined {
+  return useLiveQuery(() => getActiveWorkout(), []);
+}
+
+export interface WorkoutEntry {
+  item: WorkoutItem;
+  exercise: Exercise;
+  sets: WorkoutSet[];
+  previous: PreviousPerformance | null;
+}
+
+export interface WorkoutDetail {
+  workout: Workout;
+  planDay: PlanDay | null;
+  entries: WorkoutEntry[];
+}
+
+export function useWorkoutDetail(workoutId: string | undefined): WorkoutDetail | null | undefined {
+  return useLiveQuery(async () => {
+    if (!workoutId) return null;
+    const workout = await db.workouts.get(workoutId);
+    if (!workout || workout.deletedAt != null) return null;
+    const planDay = workout.planDayId ? ((await db.planDays.get(workout.planDayId)) ?? null) : null;
+    const items = (await db.workoutItems.where('workoutId').equals(workoutId).toArray())
+      .filter(alive)
+      .sort((a, b) => a.position - b.position);
+    const entries: WorkoutEntry[] = [];
+    for (const item of items) {
+      const exercise = await db.exercises.get(item.exerciseId);
+      if (!exercise) continue;
+      const sets = sortSets((await db.sets.where('workoutItemId').equals(item.id).toArray()).filter(alive));
+      const previous = await getPreviousPerformance(exercise.id, workoutId);
+      entries.push({ item, exercise, sets, previous });
+    }
+    return { workout, planDay, entries };
+  }, [workoutId]);
 }

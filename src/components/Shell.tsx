@@ -1,4 +1,8 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useActiveWorkout, usePlanDay } from '../db/queries';
+import { dayLabel, formatDuration } from '../domain/format';
+import { useNow } from './useNow';
+import '../screens/workout.css';
 import { IconHistory, IconProfile, IconProgress, IconToday } from './Icons';
 
 const TABS = [
@@ -25,6 +29,8 @@ export function Shell() {
         <Outlet />
       </main>
 
+      <MiniBar />
+
       <nav className="tabbar" aria-label="Main">
         {TABS.map(({ to, label, Icon, end }) => (
           <NavLink key={to} to={to} end={end} className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
@@ -34,5 +40,24 @@ export function Shell() {
         ))}
       </nav>
     </div>
+  );
+}
+
+/** Shows the running workout above the tab bar; tap returns to it. */
+function MiniBar() {
+  const active = useActiveWorkout();
+  const day = usePlanDay(active?.planDayId ?? undefined);
+  const navigate = useNavigate();
+  const now = useNow(1000);
+  if (!active) return null;
+  return (
+    <button className="mini-bar" onClick={() => navigate('/workout')} aria-label="Return to workout">
+      <span className={`dot ${day?.day.color ?? ''}`} />
+      <span className="mini-main">
+        <span className="mini-title">{day ? `${dayLabel(day.day)} · ${day.day.name}` : 'Workout'}</span>
+        <span className="mini-sub" style={{ display: 'block' }}>In progress</span>
+      </span>
+      <span className="mini-time num">{formatDuration(Math.max(0, (now - active.startedAt) / 1000))}</span>
+    </button>
   );
 }

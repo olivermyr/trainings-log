@@ -9,11 +9,13 @@ import { Today } from './screens/Today';
 import { History, Progress } from './screens/Placeholders';
 import { PlanDayDetail, Profile } from './screens/Profile';
 import { ExerciseEditor, ExerciseList } from './screens/Exercises';
+import { WorkoutScreen } from './screens/Workout';
 import './styles/tokens.css';
 import './styles/base.css';
 
 // Hash routing: works on any static host without server rewrites.
 const router = createHashRouter([
+  { path: '/workout', element: <WorkoutScreen /> },
   {
     element: <Shell />,
     children: [

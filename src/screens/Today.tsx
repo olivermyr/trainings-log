@@ -1,6 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { localDate } from '../db/ids';
-import { useLastDoneWorkout, usePlanDay, usePlanDays } from '../db/queries';
+import { useActiveWorkout, useLastDoneWorkout, usePlanDay, usePlanDays } from '../db/queries';
+import { startWorkout } from '../db/workout';
+import { Sheet } from '../components/Form';
 import { addDays, projectSchedule, type Slot } from '../domain/cycle';
 import { parseLocalDate, dayLabel, dayTag, targetLabel, weekdayShort } from '../domain/format';
 import type { PlanDay } from '../domain/types';
@@ -26,6 +29,14 @@ export function Today() {
   const nextWorkout = slots.find((s) => s.kind === 'workout');
   const restToday = slots[0]?.kind === 'rest' && slots[0].date === today;
   const next = usePlanDay(nextWorkout?.kind === 'workout' ? nextWorkout.planDayId : undefined);
+  const active = useActiveWorkout();
+  const navigate = useNavigate();
+  const [choosing, setChoosing] = useState(false);
+
+  const start = async (planDayId: string) => {
+    await startWorkout(planDayId);
+    navigate('/workout');
+  };
 
   if (!days) return null;
 
@@ -55,6 +66,15 @@ export function Today() {
             )}
           </div>
           <h2 className="next-title">{next.day.name}</h2>
+          {active ? (
+            <button className="btn-primary today-cta" onClick={() => navigate('/workout')}>
+              Resume Workout
+            </button>
+          ) : (
+            <button className="btn-primary today-cta" onClick={() => start(next.day.id)}>
+              Start Workout
+            </button>
+          )}
           <div className="list">
             {next.exercises.map((e) => (
               <div className="row" key={e.id}>
@@ -65,8 +85,28 @@ export function Today() {
               </div>
             ))}
           </div>
+          {!active && (
+            <button className="link-btn" onClick={() => setChoosing(true)}>
+              Train a different day
+            </button>
+          )}
         </section>
       )}
+
+      <Sheet open={choosing} onClose={() => setChoosing(false)} title="Choose Day">
+        <div className="list">
+          {days.map((d) => (
+            <button key={d.id} className="row" onClick={() => start(d.id)}>
+              <span className={`dot ${d.color}`} />
+              <div className="row-main">
+                <div className="row-title">{dayLabel(d)}</div>
+                <div className="row-sub">{d.name}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+        <p className="footnote">The cycle continues after the day you train.</p>
+      </Sheet>
     </div>
   );
 }

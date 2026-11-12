@@ -40,3 +40,15 @@ describe('cycle', () => {
     expect(nextPlanDayId(days, { planDayId: 'gone', date: '2026-11-11' }, '2026-11-12')).toBe('d1');
   });
 });
+
+import { parseDuration, parseNumber } from './workout';
+describe('input parsing', () => {
+  it('parses decimal commas and durations', () => {
+    expect(parseNumber('82,5')).toBe(82.5);
+    expect(parseNumber('')).toBeNull();
+    expect(parseNumber('abc')).toBeNull();
+    expect(parseDuration('2:30')).toBe(150);
+    expect(parseDuration('95')).toBe(95);
+    expect(parseDuration('')).toBeNull();
+  });
+});
