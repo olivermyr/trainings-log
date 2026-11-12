@@ -1,6 +1,6 @@
 # PROJECT_STATUS – Trainings Log
 
-_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 7_
+_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 8_
 
 Konzept: siehe `KONZEPT.md` im Claude-Projekt „Trainings Log“ (Phase 2, freigegeben).
 
@@ -153,6 +153,26 @@ public/     icon.svg + PNG-Icons
 
 **Tests:** 51/51 grün. Visuell geprüft mit rund 70 generierten Trainings über 12 Wochen im Dev-Server (der Seed läuft nur im Test-Browser, nie im Produktionscode).
 
+## AP8 – Body Metrics ✅
+**Implementiert**
+- `domain/body.ts`:
+  - `BUILTIN_METRICS`: weight, bodyFat, arm, chest, waist, thigh, restingHr, hrv, sleep
+  - `parseMetric` (Schlaf als „7:30“ oder „7.5“), `formatMetric`, `ageFrom`, `latestWithChange` (Änderung gegenüber dem letzten Wert vor etwa 4 Wochen), `slugKey`
+- `db/body.ts`:
+  - Profil in `settings.bodyProfile` (Größe, Geburtsdatum, Geschlecht)
+  - `saveBodyValues` mit Upsert: pro Wert und Tag nur ein Eintrag
+  - eigene Messwerte in `bodyMetricDefs` (Schlüssel `c_<slug>`, ohne Duplikate)
+  - `deleteBodyEntry`
+- `screens/Body.tsx`:
+  - Progress → „Body“: Gruppen Body / Measurements / Recovery mit letztem Wert und Änderung (neutral, ohne Bewertung)
+  - Formular „Log Measurements“: Datum frei wählbar, nur ausgefüllte Werte werden gespeichert, ungültige Eingaben blockieren den Button
+  - eigene Messwerte hinzufügen, Detailansicht `/progress/body/:key` mit Chart, Einträgen und Löschen (mit zweitem Tipp)
+  - Profile → Abschnitt „Body“: Größe, Geburtsdatum (das Alter wird berechnet), Geschlecht
+- `BackButton` nach `components/BackButton.tsx` verschoben (vorher zirkulärer Import Profile ↔ Body)
+- Body funktioniert auch ohne geloggte Trainings
+
+**Tests:** 60/60 grün. Ende-zu-Ende geprüft: Profil setzen, drei Messungen loggen, ungültige Schlafeingabe abgefangen, Detail-Chart
+
 ## Offen
 - Supabase-Projekt noch nicht angelegt (AP9)
 - Die Stoppuhr zeigt „Last“ (letzter Wert), nicht den Bestwert
@@ -161,7 +181,9 @@ public/     icon.svg + PNG-Icons
 GitHub `olivermyr/trainings-log` → Actions-Workflow (Tests, Build) → GitHub Pages: https://olivermyr.github.io/trainings-log/
 
 ## Nächster Schritt
-**AP8 – Body Metrics** (Progress, vierte Ansicht „Body“; Stammdaten im Profil):
-- Größe, Geburtsdatum, Geschlecht
-- Verlaufswerte: Gewicht, KFA, Umfänge (+ eigene Werte), Ruhepuls, HRV, Schlaf
-- schnelles Eingabeformular, Verlaufs-Charts mit `LineChart`
+**AP9 – Supabase-Sync, Login, Export**:
+- Supabase-Projekt über den MCP-Connector anlegen (Region EU), Tabellen spiegeln das Dexie-Schema
+- RLS: `user_id = auth.uid()`
+- Login mit 6-stelligem E-Mail-Code (OTP), kein Magic Link
+- Outbox-/`updatedAt`-Sync: Push der lokalen Änderungen seit dem letzten Sync, Pull der Remote-Änderungen; der neuere `updatedAt` gewinnt
+- Export als JSON (vollständig) und CSV (Sätze); Import von JSON als Wiederherstellung

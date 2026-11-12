@@ -22,10 +22,11 @@ import { ColumnChart, HBarChart, LineChart, type LinePoint } from '../components
 import { Segmented } from '../components/Form';
 import { IconChevronRight } from '../components/Icons';
 import { usePlanDays } from '../db/queries';
-import { BackButton } from './Profile';
+import { BackButton } from '../components/BackButton';
+import { BodyView } from './Body';
 import './progress.css';
 
-type View = 'exercises' | 'volume' | 'muscles';
+type View = 'exercises' | 'volume' | 'muscles' | 'body';
 type Range = '4w' | '12w' | '6m' | '1y' | 'all';
 
 const RANGE_DAYS: Record<Range, number | null> = { '4w': 28, '12w': 84, '6m': 182, '1y': 365, all: null };
@@ -48,13 +49,7 @@ export function Progress() {
   return (
     <div className="screen-enter">
       <h1 className="large-title">Progress</h1>
-      {data.length === 0 ? (
-        <div className="empty">
-          <h3>Nothing to analyse yet</h3>
-          Charts and records are calculated from your logged workouts.
-        </div>
-      ) : (
-        <>
+      <>
           <div className="progress-switch">
             <Segmented<View>
               label="Progress view"
@@ -64,14 +59,21 @@ export function Progress() {
                 { value: 'exercises', label: 'Exercises' },
                 { value: 'volume', label: 'Volume' },
                 { value: 'muscles', label: 'Muscles' },
+                { value: 'body', label: 'Body' },
               ]}
             />
           </div>
-          {view === 'exercises' && <ExercisesView data={data} />}
-          {view === 'volume' && <VolumeView data={data} />}
-          {view === 'muscles' && <MusclesView data={data} />}
-        </>
-      )}
+          {view !== 'body' && data.length === 0 && (
+            <div className="empty">
+              <h3>Nothing to analyse yet</h3>
+              Charts and records are calculated from your logged workouts.
+            </div>
+          )}
+          {data.length > 0 && view === 'exercises' && <ExercisesView data={data} />}
+          {data.length > 0 && view === 'volume' && <VolumeView data={data} />}
+          {data.length > 0 && view === 'muscles' && <MusclesView data={data} />}
+          {view === 'body' && <BodyView />}
+      </>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { dayTag, formatDuration, formatKg, targetLabel } from '../domain/format'
 import { MUSCLE_LABELS, type Exercise, type ExerciseType, type MuscleGroup } from '../domain/types';
 import { IconChevronRight } from '../components/Icons';
 import { CommitInput, FieldRow, Segmented, Stepper, Toggle } from '../components/Form';
-import { BackButton } from './Profile';
+import { BackButton } from '../components/BackButton';
 import './profile.css';
 
 const TYPE_LABEL: Record<ExerciseType, string> = {

@@ -14,8 +14,10 @@ import {
 } from '../db/plan';
 import { dayLabel, targetLabel } from '../domain/format';
 import type { DayColor } from '../domain/types';
-import { IconChevronLeft, IconChevronRight } from '../components/Icons';
+import { IconChevronRight } from '../components/Icons';
+import { BackButton } from '../components/BackButton';
 import { CommitInput, Segmented, Sheet } from '../components/Form';
+import { BodyProfileSection } from './Body';
 import './profile.css';
 
 const COLORS: { value: DayColor; label: string }[] = [
@@ -93,6 +95,8 @@ export function Profile() {
         <p className="footnote">Logged workouts are not changed.</p>
       </Sheet>
 
+      <BodyProfileSection />
+
       <section className="section">
         <p className="eyebrow">Library</p>
         <div className="list">
@@ -105,15 +109,6 @@ export function Profile() {
         </div>
       </section>
     </div>
-  );
-}
-
-export function BackButton({ label }: { label: string }) {
-  const navigate = useNavigate();
-  return (
-    <button className="back" onClick={() => navigate(-1)}>
-      <IconChevronLeft /> {label}
-    </button>
   );
 }
 

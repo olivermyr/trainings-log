@@ -1,0 +1,57 @@
+.metric-input {
+  cursor: text;
+}
+
+.metric-input .set-input {
+  width: 96px;
+  flex-shrink: 0;
+}
+
+.metric-input .set-input.invalid {
+  box-shadow: inset 0 0 0 2px var(--danger);
+}
+
+.metric-unit {
+  width: 34px;
+  font-size: var(--fs-footnote);
+  color: var(--text-2);
+}
+
+.unit-field {
+  width: 56px;
+  flex-shrink: 0;
+  color: var(--text-2);
+  text-align: right;
+}
+
+.entry-delete {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  color: var(--text-3);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.entry-delete.armed {
+  padding: 0 var(--s-3);
+  background: var(--danger);
+  color: #fff;
+  font-size: var(--fs-footnote);
+  font-weight: 600;
+}
+
+.inline-number {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.inline-number .set-input {
+  width: 80px;
+}
+
+.inline-suffix {
+  color: var(--text-2);
+  font-size: var(--fs-subhead);
+}

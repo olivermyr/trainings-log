@@ -7,6 +7,7 @@ import { seedIfEmpty } from './db/seed';
 import { Shell } from './components/Shell';
 import { Today } from './screens/Today';
 import { ExerciseProgress, Progress } from './screens/Progress';
+import { BodyMetricDetail } from './screens/Body';
 import { PlanDayDetail, Profile } from './screens/Profile';
 import { ExerciseEditor, ExerciseList } from './screens/Exercises';
 import { WorkoutEditScreen, WorkoutScreen } from './screens/Workout';
@@ -28,6 +29,7 @@ const router = createHashRouter([
       { path: '/summary/:id', element: <WorkoutDetail summary /> },
       { path: '/progress', element: <Progress /> },
       { path: '/progress/exercise/:id', element: <ExerciseProgress /> },
+      { path: '/progress/body/:key', element: <BodyMetricDetail /> },
       { path: '/profile', element: <Profile /> },
       { path: '/profile/day/:id', element: <PlanDayDetail /> },
       { path: '/profile/exercises', element: <ExerciseList /> },

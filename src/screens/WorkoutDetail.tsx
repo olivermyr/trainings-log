@@ -7,7 +7,7 @@ import { exerciseVolume, formatVolume } from '../domain/stats';
 import { RECORD_LABEL, sessionScore, type PR } from '../domain/records';
 import type { Exercise, WorkoutSet } from '../domain/types';
 import { CommitInput } from '../components/Form';
-import { BackButton } from './Profile';
+import { BackButton } from '../components/BackButton';
 import './detail.css';
 
 const SHORT = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
