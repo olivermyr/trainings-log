@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useHistoryData, useWorkoutTotals } from '../db/queries';
+import { useCycleAnchor, useHistoryData, useWorkoutTotals } from '../db/queries';
 import { createBackfillWorkout, toggleRestDay } from '../db/workout';
 import { localDate } from '../db/ids';
 import { addDays, projectSchedule } from '../domain/cycle';
@@ -18,6 +18,7 @@ const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export function History() {
   const data = useHistoryData();
+  const anchor = useCycleAnchor();
   const navigate = useNavigate();
   const today = localDate();
   const [cursor, setCursor] = useState(() => {
@@ -28,7 +29,7 @@ export function History() {
   const [logging, setLogging] = useState(false);
 
   const model = useMemo(() => {
-    if (!data) return null;
+    if (!data || anchor === undefined) return null;
     const { workouts, restDates, days } = data;
     const byDate = new Map<string, Workout[]>();
     for (const w of workouts) byDate.set(w.date, [...(byDate.get(w.date) ?? []), w]);
@@ -38,7 +39,7 @@ export function History() {
     const from = last?.date === today ? addDays(today, 1) : today;
     const planned = new Map<string, PlanDay | 'rest'>();
     const dayById = new Map(days.map((d) => [d.id, d]));
-    for (const s of projectSchedule(days, last ? { planDayId: last.planDayId, date: last.date } : null, from, 70)) {
+    for (const s of projectSchedule(days, last ? { planDayId: last.planDayId, date: last.date } : null, from, 70, anchor)) {
       if (s.kind === 'rest') planned.set(s.date, 'rest');
       else {
         const d = dayById.get(s.planDayId);
@@ -46,7 +47,7 @@ export function History() {
       }
     }
     return { byDate, past, planned, dayById, days, restDates };
-  }, [data, today]);
+  }, [data, today, anchor]);
 
   const grid = useMemo(() => monthGrid(cursor.y, cursor.m), [cursor]);
   const monthPrefix = `${cursor.y}-${String(cursor.m + 1).padStart(2, '0')}`;

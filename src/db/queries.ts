@@ -4,6 +4,7 @@ import { db } from './db';
 import type { Workout, WorkoutItem, WorkoutSet } from '../domain/types';
 import { sortSets } from '../domain/workout';
 import { exerciseVolume } from '../domain/stats';
+import type { CycleAnchor } from '../domain/cycle';
 import { getActiveWorkout, getPreviousPerformance, type PreviousPerformance } from './workout';
 
 const alive = <T extends { deletedAt: number | null }>(x: T) => x.deletedAt == null;
@@ -162,4 +163,14 @@ export function useWorkoutTotals(ids: string[]): Map<string, { sets: number; vol
     }
     return out;
   }, [key]);
+}
+
+// ---------- Cycle anchor ----------
+
+export function useCycleAnchor(): CycleAnchor | null | undefined {
+  return useLiveQuery(async () => ((await db.settings.get('cycleAnchor'))?.value as CycleAnchor | undefined) ?? null, []);
+}
+
+export async function setCycleAnchor(anchor: CycleAnchor) {
+  await db.settings.put({ key: 'cycleAnchor', value: anchor, updatedAt: Date.now() });
 }

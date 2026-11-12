@@ -16,6 +16,12 @@ export interface LastDone {
   date: string; // YYYY-MM-DD
 }
 
+/** Manual cycle position: "on `date`, the next workout is `planDayId`". */
+export interface CycleAnchor {
+  date: string;
+  planDayId: string;
+}
+
 export type Slot =
   | { date: string; kind: 'workout'; planDayId: string }
   | { date: string; kind: 'rest' };
@@ -30,7 +36,12 @@ export function addDays(date: string, n: number): string {
  * Index into the cycle [day0, day1, …, dayN-1, REST] of the next slot,
  * plus whether that rest slot falls on `from`.
  */
-function nextIndex(days: CycleDay[], last: LastDone | null, from: string): number {
+function nextIndex(days: CycleDay[], last: LastDone | null, from: string, anchor?: CycleAnchor | null): number {
+  // A manual anchor wins until a workout is logged on a later date than the anchor.
+  if (anchor && (!last || anchor.date > last.date)) {
+    const a = days.findIndex((d) => d.id === anchor.planDayId);
+    if (a !== -1) return a;
+  }
   if (!last || last.planDayId == null) return 0;
   const idx = days.findIndex((d) => d.id === last.planDayId);
   if (idx === -1) return 0;
@@ -48,11 +59,12 @@ export function projectSchedule(
   last: LastDone | null,
   from: string,
   count: number,
+  anchor: CycleAnchor | null = null,
 ): Slot[] {
   const days = [...daysUnsorted].sort((a, b) => a.position - b.position);
   if (days.length === 0) return [];
   const cycleLen = days.length + 1; // + rest
-  let i = nextIndex(days, last, from);
+  let i = nextIndex(days, last, from, anchor);
   const out: Slot[] = [];
   for (let n = 0; n < count; n++) {
     const date = addDays(from, n);
@@ -63,8 +75,13 @@ export function projectSchedule(
 }
 
 /** The next plan day to train (skipping a pending rest day). */
-export function nextPlanDayId(days: CycleDay[], last: LastDone | null, from: string): string | null {
-  const slots = projectSchedule(days, last, from, 2);
+export function nextPlanDayId(
+  days: CycleDay[],
+  last: LastDone | null,
+  from: string,
+  anchor: CycleAnchor | null = null,
+): string | null {
+  const slots = projectSchedule(days, last, from, 2, anchor);
   const w = slots.find((s) => s.kind === 'workout');
   return w && w.kind === 'workout' ? w.planDayId : null;
 }

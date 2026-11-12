@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useExercises, usePlanDay, usePlanDays } from '../db/queries';
+import { setCycleAnchor, useExercises, usePlanDay, usePlanDays } from '../db/queries';
+import { localDate } from '../db/ids';
 import {
   addExerciseToDay,
   addPlanDay,
@@ -26,6 +27,8 @@ const COLORS: { value: DayColor; label: string }[] = [
 export function Profile() {
   const days = usePlanDays();
   const navigate = useNavigate();
+  const [positioning, setPositioning] = useState(false);
+  const [anchored, setAnchored] = useState<string | null>(null);
   return (
     <div className="screen-enter">
       <h1 className="large-title">Profile</h1>
@@ -54,6 +57,41 @@ export function Profile() {
         </div>
         <p className="footnote">Days run in this order, followed by one rest day.</p>
       </section>
+
+      <section className="section">
+        <p className="eyebrow">Cycle</p>
+        <div className="list">
+          <button className="row action" onClick={() => setPositioning(true)}>
+            Set Today's Workout
+          </button>
+        </div>
+        <p className="footnote">
+          {anchored ? `Today is now ${anchored}. The cycle continues from there.` : 'Moves the cycle so that today starts with the chosen day.'}
+        </p>
+      </section>
+
+      <Sheet open={positioning} onClose={() => setPositioning(false)} title="Today's Workout">
+        <div className="list">
+          {days?.map((d) => (
+            <button
+              key={d.id}
+              className="row"
+              onClick={async () => {
+                await setCycleAnchor({ date: localDate(), planDayId: d.id });
+                setAnchored(dayLabel(d));
+                setPositioning(false);
+              }}
+            >
+              <span className={`dot ${d.color}`} />
+              <div className="row-main">
+                <div className="row-title">{dayLabel(d)}</div>
+                <div className="row-sub">{d.name}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+        <p className="footnote">Logged workouts are not changed.</p>
+      </Sheet>
 
       <section className="section">
         <p className="eyebrow">Library</p>

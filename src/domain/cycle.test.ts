@@ -52,3 +52,18 @@ describe('input parsing', () => {
     expect(parseDuration('')).toBeNull();
   });
 });
+
+describe('cycle anchor', () => {
+  it('sets today as Day 4 so that Sunday becomes the rest day', () => {
+    // Thu 12 Nov 2026 = Day 4 → Fri D5, Sat D6, Sun rest, Mon D1
+    const s = projectSchedule(days, { planDayId: 'd1', date: '2026-11-09' }, '2026-11-12', 5, { date: '2026-11-12', planDayId: 'd4' });
+    expect(kinds(s)).toEqual(['d4', 'd5', 'd6', 'R', 'd1']);
+  });
+  it('a workout on the anchor day takes over again', () => {
+    const anchor = { date: '2026-11-12', planDayId: 'd4' };
+    expect(nextPlanDayId(days, { planDayId: 'd4', date: '2026-11-12' }, '2026-11-13', anchor)).toBe('d5');
+  });
+  it('anchor keeps its day if that day is missed (plan shifts)', () => {
+    expect(nextPlanDayId(days, null, '2026-11-14', { date: '2026-11-12', planDayId: 'd4' })).toBe('d4');
+  });
+});

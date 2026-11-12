@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { localDate } from '../db/ids';
-import { useActiveWorkout, useLastDoneWorkout, usePlanDay, usePlanDays } from '../db/queries';
+import { useActiveWorkout, useCycleAnchor, useLastDoneWorkout, usePlanDay, usePlanDays } from '../db/queries';
 import { startWorkout } from '../db/workout';
 import { Sheet } from '../components/Form';
 import { addDays, projectSchedule, type Slot } from '../domain/cycle';
@@ -16,14 +16,15 @@ export function Today() {
   const today = localDate();
   const days = usePlanDays();
   const last = useLastDoneWorkout();
+  const anchor = useCycleAnchor();
 
   const doneToday = last?.date === today;
   const from = doneToday ? addDays(today, 1) : today;
 
   const slots = useMemo<Slot[]>(() => {
-    if (!days || last === undefined) return [];
-    return projectSchedule(days, last ? { planDayId: last.planDayId, date: last.date } : null, from, 7);
-  }, [days, last, from]);
+    if (!days || last === undefined || anchor === undefined) return [];
+    return projectSchedule(days, last ? { planDayId: last.planDayId, date: last.date } : null, from, 7, anchor);
+  }, [days, last, from, anchor]);
 
   const dayById = useMemo(() => new Map((days ?? []).map((d) => [d.id, d])), [days]);
   const nextWorkout = slots.find((s) => s.kind === 'workout');
