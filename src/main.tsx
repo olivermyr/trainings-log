@@ -6,21 +6,26 @@ import { requestPersistentStorage } from './db/db';
 import { seedIfEmpty } from './db/seed';
 import { Shell } from './components/Shell';
 import { Today } from './screens/Today';
-import { History, Progress } from './screens/Placeholders';
+import { Progress } from './screens/Placeholders';
 import { PlanDayDetail, Profile } from './screens/Profile';
 import { ExerciseEditor, ExerciseList } from './screens/Exercises';
-import { WorkoutScreen } from './screens/Workout';
+import { WorkoutEditScreen, WorkoutScreen } from './screens/Workout';
+import { History } from './screens/History';
+import { WorkoutDetail } from './screens/WorkoutDetail';
 import './styles/tokens.css';
 import './styles/base.css';
 
 // Hash routing: works on any static host without server rewrites.
 const router = createHashRouter([
   { path: '/workout', element: <WorkoutScreen /> },
+  { path: '/history/workout/:id/edit', element: <WorkoutEditScreen /> },
   {
     element: <Shell />,
     children: [
       { path: '/', element: <Today /> },
       { path: '/history', element: <History /> },
+      { path: '/history/workout/:id', element: <WorkoutDetail /> },
+      { path: '/summary/:id', element: <WorkoutDetail summary /> },
       { path: '/progress', element: <Progress /> },
       { path: '/profile', element: <Profile /> },
       { path: '/profile/day/:id', element: <PlanDayDetail /> },

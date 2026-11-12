@@ -4,7 +4,10 @@ import { seedIfEmpty } from './seed';
 import {
   addSet,
   completeSet,
+  createBackfillWorkout,
   discardWorkout,
+  finalizeWorkout,
+  getActiveWorkout,
   finishWorkout,
   getPreviousPerformance,
   removeLastSet,
@@ -106,7 +109,7 @@ describe('workout tracking', () => {
     const next = await itemSets(w2.id, 'Single Arm Triceps Pushdown');
     expect(next.sets.map((s) => s.reps)).toEqual([12, 10, 11, 9, 10, 8]);
     // weaker side in set 1 = 10 < 12 → no suggestion
-    const prev = await getPreviousPerformance(next.ex.id, w2.id, db);
+    const prev = await getPreviousPerformance(next.ex.id, w2, db);
     expect(progressionSuggestion(next.ex, prev!.sets)).toBeNull();
   });
 
@@ -127,6 +130,24 @@ describe('workout tracking', () => {
     await finishWorkout(w.id, db);
     const prev = await getPreviousPerformance(ex.id, null, db);
     expect(progressionSuggestion(ex, prev!.sets)?.weight).toBe(2.5);
+  });
+
+  it('backfill: a past workout only sees performances before it, and finalize cleans up', async () => {
+    await logWorkout(1, { 'Bench Press (Smith Machine)': [[80, 10], [80, 9], [80, 8]] }); // today
+    const past = await createBackfillWorkout((await days())[1].id, '2026-01-05', db);
+    const { sets, ex } = await itemSets(past.id, 'Bench Press (Smith Machine)');
+    expect(sets.every((s) => s.weight == null)).toBe(true); // today's values must not leak into the past
+    expect(await getActiveWorkout(db)).toBeNull();
+    await updateSet(sets[0].id, { weight: 70, reps: 10 }, db);
+    await completeSet(sets[0].id, db);
+    expect(await finalizeWorkout(past.id, db)).toBe('kept');
+    expect((await itemSets(past.id, ex.name)).sets).toHaveLength(1);
+    // the other exercises of that backfilled day had nothing completed → no sets left
+    const lat = await itemSets(past.id, 'Lat Pulldown');
+    expect(lat.sets).toHaveLength(0);
+    // an empty backfill is deleted on finalize
+    const empty = await createBackfillWorkout((await days())[0].id, '2026-01-06', db);
+    expect(await finalizeWorkout(empty.id, db)).toBe('deleted');
   });
 
   it('adds and removes sets (pairs for unilateral)', async () => {

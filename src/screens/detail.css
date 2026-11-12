@@ -1,0 +1,32 @@
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-2);
+  margin-bottom: var(--s-8);
+}
+
+.stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: var(--fs-footnote);
+  color: var(--text-2);
+}
+
+.stat-value {
+  font-size: var(--fs-title);
+  font-weight: 700;
+}
+
+.detail-set .set-num {
+  width: 28px;
+  text-align: left;
+}
+
+.detail-note {
+  white-space: pre-wrap;
+  font-style: italic;
+}

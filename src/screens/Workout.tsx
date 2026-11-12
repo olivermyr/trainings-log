@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useActiveWorkout, useExercises, useWorkoutDetail, type WorkoutEntry } from '../db/queries';
 import {
   addExerciseToWorkout,
@@ -7,12 +7,15 @@ import {
   applyWeightToOpenSets,
   completeSet,
   discardWorkout,
+  finalizeWorkout,
   finishWorkout,
   removeLastSet,
   removeWorkoutItem,
   updateSet,
+  updateWorkout,
   updateWorkoutItemNote,
 } from '../db/workout';
+import { localDate } from '../db/ids';
 import { dayLabel, dayMonth, formatDuration, formatKg, targetLabel, weekdayShort } from '../domain/format';
 import { parseNumber, previousFor, progressionSuggestion } from '../domain/workout';
 import type { Exercise, WorkoutSet } from '../domain/types';
@@ -25,27 +28,40 @@ import { maybeStartRestAfter, useStopwatch } from '../db/timers';
 import { StopwatchOverlay } from './Stopwatch';
 import './workout.css';
 
+/** Live mode starts rest timers and the stopwatch; edit mode (history) is input only. */
+const LiveContext = createContext(true);
+
 export function WorkoutScreen() {
   const active = useActiveWorkout();
   const navigate = useNavigate();
-  const detail = useWorkoutDetail(active?.id);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [finishing, setFinishing] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const now = useNow(1000);
-  const sw = useStopwatch();
-  const [timedSetId, setTimedSetId] = useState<string | null>(null);
   useWakeLock(!!active);
-  // Keep the overlay open after the stopwatch stops, even if the app was reloaded while it ran.
-  useEffect(() => {
-    if (sw?.setId) setTimedSetId(sw.setId);
-  }, [sw?.setId]);
-
   useEffect(() => {
     if (active === null) navigate('/', { replace: true });
   }, [active, navigate]);
+  if (!active) return null;
+  return <WorkoutEditor workoutId={active.id} live />;
+}
 
-  // Expand the first unfinished exercise when nothing is expanded yet.
+export function WorkoutEditScreen() {
+  const { id } = useParams();
+  return id ? <WorkoutEditor workoutId={id} live={false} /> : null;
+}
+
+function WorkoutEditor({ workoutId, live }: { workoutId: string; live: boolean }) {
+  const navigate = useNavigate();
+  const detail = useWorkoutDetail(workoutId);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [finishing, setFinishing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const now = useNow(live ? 1000 : 60_000);
+  const sw = useStopwatch();
+  const [timedSetId, setTimedSetId] = useState<string | null>(null);
+  // Keep the overlay open after the stopwatch stops, even if the app was reloaded while it ran.
+  useEffect(() => {
+    if (live && sw?.setId) setTimedSetId(sw.setId);
+  }, [live, sw?.setId]);
+
+  // Live: expand the first unfinished exercise when nothing is expanded yet.
   const firstOpen = useMemo(
     () => detail?.entries.find((e) => e.sets.some((s) => s.completedAt == null))?.item.id ?? null,
     [detail],
@@ -54,11 +70,17 @@ export function WorkoutScreen() {
     if (expanded === null && firstOpen) setExpanded(firstOpen);
   }, [firstOpen, expanded]);
 
-  if (!active || !detail) return null;
+  if (detail === null) {
+    return (
+      <div className="empty">
+        <h3>Workout not found</h3>
+      </div>
+    );
+  }
+  if (!detail) return null;
   const { workout, planDay, entries } = detail;
 
-  // A running stopwatch always re-opens its overlay (e.g. after a reload).
-  const overlaySetId = sw?.setId ?? timedSetId;
+  const overlaySetId = (live ? sw?.setId : null) ?? timedSetId;
   const overlayEntry = overlaySetId ? entries.find((e) => e.sets.some((s) => s.id === overlaySetId)) : undefined;
   const overlaySet = overlayEntry?.sets.find((s) => s.id === overlaySetId);
   const expandedEntry = entries.find((e) => e.item.id === expanded);
@@ -75,99 +97,128 @@ export function WorkoutScreen() {
     setExpanded(next?.item.id ?? null);
   };
 
+  const doneEditing = async () => {
+    const result = await finalizeWorkout(workout.id);
+    navigate(result === 'deleted' ? '/history' : `/history/workout/${workout.id}`, { replace: true });
+  };
+
   return (
-    <div className="workout screen-enter">
-      <header className="workout-bar">
-        <button className="icon-btn" aria-label="Minimize workout" onClick={() => navigate('/')}>
-          <IconChevronDown />
-        </button>
-        <span className="workout-clock num">{formatDuration(Math.max(0, (now - workout.startedAt) / 1000))}</span>
-        <button className="finish-btn" onClick={() => setFinishing(true)}>
-          Finish
-        </button>
-      </header>
-
-      <div className="workout-body">
-        <p className="workout-eyebrow">
-          {planDay && <span className={`dot ${planDay.color}`} />}
-          {planDay ? dayLabel(planDay) : 'Workout'}
-        </p>
-        <h1 className="workout-title">{planDay?.name ?? 'Free workout'}</h1>
-
-        {entries.map((entry) => (
-          <ExerciseBlock
-            key={entry.item.id}
-            entry={entry}
-            expanded={expanded === entry.item.id}
-            onToggle={() => setExpanded(expanded === entry.item.id ? null : entry.item.id)}
-            onCompleted={(remaining) => afterComplete(entry.item.id, remaining)}
-            onOpenTimed={setTimedSetId}
-          />
-        ))}
-
-        <button className="add-exercise" onClick={() => setAdding(true)}>
-          Add Exercise
-        </button>
-      </div>
-
-      {!overlaySet && (
-        <RestPanel manualSeconds={expandedEntry?.exercise.restSeconds ?? 90} manualLabel={expandedEntry?.exercise.name ?? 'Rest'} />
-      )}
-
-      {overlaySet && overlayEntry && (
-        <StopwatchOverlay
-          set={overlaySet}
-          exercise={overlayEntry.exercise}
-          last={overlayEntry.previous?.sets[0]?.durationS ?? null}
-          onClose={(saved) => {
-            setTimedSetId(null);
-            if (saved) {
-              const remaining = overlayEntry.sets.filter((x) => x.completedAt == null && x.id !== overlaySet.id).length;
-              afterComplete(overlayEntry.item.id, remaining);
-            }
-          }}
-        />
-      )}
-
-      <AddExerciseSheet
-        open={adding}
-        exclude={new Set(entries.map((e) => e.exercise.id))}
-        onClose={() => setAdding(false)}
-        onPick={async (id) => {
-          await addExerciseToWorkout(workout.id, id);
-          setAdding(false);
-        }}
-      />
-
-      <Sheet open={finishing} onClose={() => setFinishing(false)} title="Finish Workout">
-        {doneSets === 0 ? (
-          <p className="sheet-text">No sets completed yet. There is nothing to save.</p>
-        ) : (
-          <p className="sheet-text">
-            {doneSets} {doneSets === 1 ? 'set' : 'sets'} completed.
-            {openSets > 0 && ` ${openSets} unfinished ${openSets === 1 ? 'set' : 'sets'} will not be saved.`}
-          </p>
-        )}
-        <div className="sheet-actions">
-          {doneSets > 0 && (
-            <button
-              className="btn-primary"
-              onClick={async () => {
-                if (await finishWorkout(workout.id)) navigate('/', { replace: true });
-              }}
-            >
-              Finish Workout
+    <LiveContext.Provider value={live}>
+      <div className="workout screen-enter">
+        {live ? (
+          <header className="workout-bar">
+            <button className="icon-btn" aria-label="Minimize workout" onClick={() => navigate('/')}>
+              <IconChevronDown />
             </button>
-          )}
-          <DiscardButton
-            onDiscard={async () => {
-              await discardWorkout(workout.id);
-              navigate('/', { replace: true });
+            <span className="workout-clock num">{formatDuration(Math.max(0, (now - workout.startedAt) / 1000))}</span>
+            <button className="finish-btn" onClick={() => setFinishing(true)}>
+              Finish
+            </button>
+          </header>
+        ) : (
+          <header className="workout-bar">
+            <span />
+            <input
+              type="date"
+              className="date-input"
+              aria-label="Workout date"
+              value={workout.date}
+              max={localDate()}
+              onChange={(e) => e.target.value && updateWorkout(workout.id, { date: e.target.value })}
+            />
+            <button className="finish-btn" onClick={doneEditing}>
+              Done
+            </button>
+          </header>
+        )}
+
+        <div className="workout-body">
+          <p className="workout-eyebrow">
+            {planDay && <span className={`dot ${planDay.color}`} />}
+            {planDay ? dayLabel(planDay) : 'Workout'}
+            {!live && <span className="edit-badge">Editing</span>}
+          </p>
+          <h1 className="workout-title">{planDay?.name ?? 'Free workout'}</h1>
+
+          {entries.map((entry) => (
+            <ExerciseBlock
+              key={entry.item.id}
+              entry={entry}
+              expanded={expanded === entry.item.id}
+              onToggle={() => setExpanded(expanded === entry.item.id ? null : entry.item.id)}
+              onCompleted={(remaining) => afterComplete(entry.item.id, remaining)}
+              onOpenTimed={setTimedSetId}
+            />
+          ))}
+
+          <button className="add-exercise" onClick={() => setAdding(true)}>
+            Add Exercise
+          </button>
+          {!live && <p className="footnote">Changes are saved instantly. Sets without ✓ are dropped when you tap Done.</p>}
+        </div>
+
+        {live && !overlaySet && (
+          <RestPanel manualSeconds={expandedEntry?.exercise.restSeconds ?? 90} manualLabel={expandedEntry?.exercise.name ?? 'Rest'} />
+        )}
+
+        {overlaySet && overlayEntry && (
+          <StopwatchOverlay
+            set={overlaySet}
+            exercise={overlayEntry.exercise}
+            last={overlayEntry.previous?.sets[0]?.durationS ?? null}
+            manualOnly={!live}
+            onClose={(saved) => {
+              setTimedSetId(null);
+              if (saved) {
+                const remaining = overlayEntry.sets.filter((x) => x.completedAt == null && x.id !== overlaySet.id).length;
+                afterComplete(overlayEntry.item.id, remaining);
+              }
             }}
           />
-        </div>
-      </Sheet>
-    </div>
+        )}
+
+        <AddExerciseSheet
+          open={adding}
+          exclude={new Set(entries.map((e) => e.exercise.id))}
+          onClose={() => setAdding(false)}
+          onPick={async (id) => {
+            await addExerciseToWorkout(workout.id, id);
+            setAdding(false);
+          }}
+        />
+
+        {live && (
+          <Sheet open={finishing} onClose={() => setFinishing(false)} title="Finish Workout">
+            {doneSets === 0 ? (
+              <p className="sheet-text">No sets completed yet. There is nothing to save.</p>
+            ) : (
+              <p className="sheet-text">
+                {doneSets} {doneSets === 1 ? 'set' : 'sets'} completed.
+                {openSets > 0 && ` ${openSets} unfinished ${openSets === 1 ? 'set' : 'sets'} will not be saved.`}
+              </p>
+            )}
+            <div className="sheet-actions">
+              {doneSets > 0 && (
+                <button
+                  className="btn-primary"
+                  onClick={async () => {
+                    if (await finishWorkout(workout.id)) navigate(`/summary/${workout.id}`, { replace: true });
+                  }}
+                >
+                  Finish Workout
+                </button>
+              )}
+              <DiscardButton
+                onDiscard={async () => {
+                  await discardWorkout(workout.id);
+                  navigate('/', { replace: true });
+                }}
+              />
+            </div>
+          </Sheet>
+        )}
+      </div>
+    </LiveContext.Provider>
   );
 }
 
@@ -326,6 +377,7 @@ function SetRow({
   onCompleted: () => void;
   onOpenTimed: () => void;
 }) {
+  const live = useContext(LiveContext);
   const completed = set.completedAt != null;
   const [editing, setEditing] = useState(false);
   const locked = completed && !editing;
@@ -348,7 +400,7 @@ function SetRow({
     }
     (document.activeElement as HTMLElement | null)?.blur();
     await completeSet(set.id);
-    void maybeStartRestAfter(set, ex);
+    if (live) void maybeStartRestAfter(set, ex);
     onCompleted();
   };
 

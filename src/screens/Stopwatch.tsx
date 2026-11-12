@@ -16,11 +16,13 @@ export function StopwatchOverlay({
   set,
   exercise: ex,
   last,
+  manualOnly = false,
   onClose,
 }: {
   set: WorkoutSet;
   exercise: Exercise;
   last: number | null;
+  manualOnly?: boolean;
   onClose: (saved: boolean) => void;
 }) {
   const sw = useStopwatch();
@@ -40,7 +42,7 @@ export function StopwatchOverlay({
   const save = async () => {
     if (set.completedAt) return onClose(false);
     await completeSet(set.id);
-    await maybeStartRestAfter(set, ex);
+    if (!manualOnly) await maybeStartRestAfter(set, ex);
     onClose(true);
   };
 
@@ -140,7 +142,7 @@ export function StopwatchOverlay({
           <button className="btn-primary" onClick={save}>
             {set.completedAt ? 'Done' : 'Save Set'}
           </button>
-          {!set.completedAt && (
+          {!set.completedAt && !manualOnly && (
             <button className="btn-plain" onClick={() => startStopwatch(set.id)}>
               Redo
             </button>
@@ -148,18 +150,20 @@ export function StopwatchOverlay({
         </div>
       ) : (
         <div className="sw-actions">
-          <button className="sw-start" onClick={() => startStopwatch(set.id)}>
-            Start
-          </button>
-          <ManualTime onSave={(durationS) => updateSet(set.id, { durationS })} />
+          {!manualOnly && (
+            <button className="sw-start" onClick={() => startStopwatch(set.id)}>
+              Start
+            </button>
+          )}
+          <ManualTime initiallyOpen={manualOnly} onSave={(durationS) => updateSet(set.id, { durationS })} />
         </div>
       )}
     </div>
   );
 }
 
-function ManualTime({ onSave }: { onSave: (s: number) => void }) {
-  const [open, setOpen] = useState(false);
+function ManualTime({ onSave, initiallyOpen = false }: { onSave: (s: number) => void; initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen);
   const [text, setText] = useState('');
   if (!open)
     return (

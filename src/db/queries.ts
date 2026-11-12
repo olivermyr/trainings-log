@@ -3,6 +3,7 @@ import type { Exercise, PlanDay, PlanDayItem } from '../domain/types';
 import { db } from './db';
 import type { Workout, WorkoutItem, WorkoutSet } from '../domain/types';
 import { sortSets } from '../domain/workout';
+import { exerciseVolume } from '../domain/stats';
 import { getActiveWorkout, getPreviousPerformance, type PreviousPerformance } from './workout';
 
 const alive = <T extends { deletedAt: number | null }>(x: T) => x.deletedAt == null;
@@ -114,9 +115,51 @@ export function useWorkoutDetail(workoutId: string | undefined): WorkoutDetail |
       const exercise = await db.exercises.get(item.exerciseId);
       if (!exercise) continue;
       const sets = sortSets((await db.sets.where('workoutItemId').equals(item.id).toArray()).filter(alive));
-      const previous = await getPreviousPerformance(exercise.id, workoutId);
+      const previous = await getPreviousPerformance(exercise.id, workout);
       entries.push({ item, exercise, sets, previous });
     }
     return { workout, planDay, entries };
   }, [workoutId]);
+}
+
+// ---------- History ----------
+
+export interface HistoryData {
+  workouts: Workout[];
+  restDates: Set<string>;
+  days: PlanDay[];
+}
+
+export function useHistoryData(): HistoryData | undefined {
+  return useLiveQuery(async () => {
+    const workouts = (await db.workouts.where('status').equals('done').toArray())
+      .filter(alive)
+      .sort((a, b) => (a.date === b.date ? a.startedAt - b.startedAt : a.date < b.date ? -1 : 1));
+    const restDates = new Set((await db.restDays.toArray()).filter(alive).map((r) => r.date));
+    const days = (await db.planDays.toArray()).filter(alive).sort((a, b) => a.position - b.position);
+    return { workouts, restDates, days };
+  }, []);
+}
+
+/** Per-workout totals for lists: completed sets and tonnage. */
+export function useWorkoutTotals(ids: string[]): Map<string, { sets: number; volume: number }> | undefined {
+  const key = ids.join(',');
+  return useLiveQuery(async () => {
+    const out = new Map<string, { sets: number; volume: number }>();
+    for (const id of ids) {
+      const items = (await db.workoutItems.where('workoutId').equals(id).toArray()).filter(alive);
+      let sets = 0;
+      let volume = 0;
+      for (const it of items) {
+        const ex = await db.exercises.get(it.exerciseId);
+        const ss = (await db.sets.where('workoutItemId').equals(it.id).toArray()).filter(
+          (s) => alive(s) && s.completedAt != null,
+        );
+        sets += ss.length;
+        if (ex) volume += exerciseVolume(ex, ss);
+      }
+      out.set(id, { sets, volume });
+    }
+    return out;
+  }, [key]);
 }

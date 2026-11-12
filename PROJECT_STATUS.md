@@ -1,6 +1,6 @@
 # PROJECT_STATUS – Trainings Log
 
-_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 4_
+_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 5_
 
 Konzept: siehe `KONZEPT.md` im Claude-Projekt „Trainings Log“ (Phase 2, freigegeben).
 
@@ -87,14 +87,39 @@ public/     icon.svg + PNG-Icons
 - Neuladen während der laufenden Stoppuhr (die Zeit läuft korrekt weiter)
 - Pause → Mini-Leiste → „Rest over“
 
+## AP5 – Kalender, History, Bearbeiten & Nachtragen ✅
+**Implementiert**
+- `domain/history.ts`:
+  - `classifyPastDays`: Ruhetag (Tag nach dem letzten Plantag oder explizit markiert) vs. Lücke
+  - `monthGrid`: Wochen beginnen am Montag
+- `domain/stats.ts`: Volumen = Gewicht × Wiederholungen × loadFactor, nur erledigte Arbeitssätze, Zeit-Übungen = 0
+- `getPreviousPerformance(exerciseId, refWorkout)` berücksichtigt nur Trainings **vor** dem betrachteten Training. Werte aus späteren Trainings landen damit nicht in nachgetragenen.
+- `createBackfillWorkout(planDayId, date)` legt ein Training direkt mit Status „done“ an (12:00 Uhr) und blockiert damit kein Live-Training. `finalizeWorkout` verwirft unerledigte Sätze und löscht leere Trainings. Dazu `updateWorkout` (Datum, Notiz) und `toggleRestDay`.
+- `Workout.tsx` → gemeinsamer `WorkoutEditor` mit Live-Modus und Edit-Modus:
+  - Edit: Datumsfeld, „Done“, keine Pausen und kein Wake Lock; die Stoppuhr erlaubt nur manuelle Zeiteingabe
+  - Route `/history/workout/:id/edit`
+- `History.tsx`:
+  - Monatskalender: erledigte Trainings als gefüllter Punkt in der Tagesfarbe, geplante als Ring (70 Tage im Voraus), Lücken als Strich, Ruhetage ohne Markierung
+  - Tagespanel: Trainings, Plan, „Log Workout“ zum Nachtragen, Ruhetag markieren
+  - Liste der Trainings im Monat mit Sätzen und Volumen; Desktop zweispaltig
+- `WorkoutDetail.tsx` (`/history/workout/:id`, als Zusammenfassung unter `/summary/:id`): Dauer, Sätze, Volumen, Sätze pro Übung, Notiz, Bearbeiten, Löschen. „Finish“ führt jetzt zur Zusammenfassung.
+
+**Tests:** 32/32 grün. Ende-zu-Ende geprüft:
+- zwei Trainings nachgetragen, Ruhetag markiert
+- Today schlägt danach korrekt Day 3 vor
+- Live-Training → Zusammenfassung
+
 ## Offen
 - Supabase-Projekt noch nicht angelegt (AP9)
-- History und Progress zeigen bis AP5/AP7 nur leere Zustände
-- Nach „Finish“ geht es zurück zu Today; die Zusammenfassung folgt mit AP6
+- Progress zeigt bis AP7 nur einen leeren Zustand
+- Die Zusammenfassung zeigt noch keine PRs und keinen Vergleich mit dem letzten gleichen Tag (AP6)
 - „Last“ bei der Stoppuhr ist der letzte Wert; ein echter PR folgt mit AP6
 
 ## Deployment
 GitHub `olivermyr/trainings-log` → Actions-Workflow (Tests, Build) → GitHub Pages: https://olivermyr.github.io/trainings-log/
 
 ## Nächster Schritt
-**AP5 – Zyklus, Kalender, History**: Kalenderansicht (erledigt, geplant, Ruhe, Lücken), Liste vergangener Trainings, Detailansicht, Bearbeiten und Nachtragen (auch mit Datum in der Vergangenheit).
+**AP6 – PRs & Zusammenfassung**:
+- PR-Erkennung: schwerstes Gewicht, meiste Wiederholungen bei einem Gewicht, bestes e1RM (Epley), höchstes Volumen pro Einheit, längste Zeit bei einem Gewicht, meiste Wiederholungen mit Körpergewicht
+- PR-Badge am Satz im Live-Training
+- Zusammenfassung mit PRs und Vergleich mit dem letzten gleichen Trainingstag

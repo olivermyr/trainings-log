@@ -16,16 +16,21 @@ export interface PreviousPerformance {
  */
 export async function getPreviousPerformance(
   exerciseId: string,
-  excludeWorkoutId: string | null = null,
+  /** The workout being viewed/edited: only workouts BEFORE it count. */
+  ref: Pick<Workout, 'id' | 'date' | 'startedAt'> | null = null,
   database: TrainingsDB = db,
 ): Promise<PreviousPerformance | null> {
   const items = (await database.workoutItems.where('exerciseId').equals(exerciseId).toArray()).filter(
-    (i) => alive(i) && i.workoutId !== excludeWorkoutId,
+    (i) => alive(i) && i.workoutId !== ref?.id,
   );
   if (items.length === 0) return null;
   const workouts = await database.workouts.bulkGet([...new Set(items.map((i) => i.workoutId))]);
+  const isBefore = (w: Workout) =>
+    !ref || w.date < ref.date || (w.date === ref.date && (w.finishedAt ?? w.startedAt) <= ref.startedAt);
   const done = new Map(
-    workouts.filter((w): w is Workout => !!w && alive(w) && w.status === 'done').map((w) => [w.id, w]),
+    workouts
+      .filter((w): w is Workout => !!w && alive(w) && w.status === 'done' && isBefore(w))
+      .map((w) => [w.id, w]),
   );
   const candidates = items
     .filter((i) => done.has(i.workoutId))
@@ -51,14 +56,14 @@ export async function getActiveWorkout(database: TrainingsDB = db): Promise<Work
 
 async function createItemWithSets(
   database: TrainingsDB,
-  workoutId: string,
+  workout: Workout,
   exercise: Exercise,
   position: number,
   now: number,
 ) {
-  const item: WorkoutItem = { ...meta(now), workoutId, exerciseId: exercise.id, position, note: '' };
+  const item: WorkoutItem = { ...meta(now), workoutId: workout.id, exerciseId: exercise.id, position, note: '' };
   await database.workoutItems.add(item);
-  const prev = await getPreviousPerformance(exercise.id, workoutId, database);
+  const prev = await getPreviousPerformance(exercise.id, workout, database);
   const values = buildInitialSets(exercise, prev?.sets ?? []);
   await database.sets.bulkAdd(values.map((v) => toSet(v, item.id, now)));
   return item;
@@ -77,7 +82,7 @@ export async function startWorkout(planDayId: string, database: TrainingsDB = db
       const existing = await getActiveWorkout(database);
       if (existing) return existing;
       const now = Date.now();
-      const workout: Workout = {
+      return createFromPlan(database, planDayId, {
         ...meta(now),
         planDayId,
         date: localDate(new Date(now)),
@@ -85,28 +90,95 @@ export async function startWorkout(planDayId: string, database: TrainingsDB = db
         finishedAt: null,
         note: '',
         status: 'active',
-      };
-      await database.workouts.add(workout);
-      const planItems = (await database.planDayItems.where('planDayId').equals(planDayId).toArray())
-        .filter(alive)
-        .sort((a, b) => a.position - b.position);
-      const exercises = await database.exercises.bulkGet(planItems.map((p) => p.exerciseId));
-      let pos = 0;
-      for (const ex of exercises) {
-        if (ex && alive(ex)) await createItemWithSets(database, workout.id, ex, pos++, now);
-      }
-      return workout;
+      });
     },
   );
+}
+
+async function createFromPlan(database: TrainingsDB, planDayId: string, workout: Workout): Promise<Workout> {
+  const now = workout.updatedAt;
+  await database.workouts.add(workout);
+  const planItems = (await database.planDayItems.where('planDayId').equals(planDayId).toArray())
+    .filter(alive)
+    .sort((a, b) => a.position - b.position);
+  const exercises = await database.exercises.bulkGet(planItems.map((p) => p.exerciseId));
+  let pos = 0;
+  for (const ex of exercises) {
+    if (ex && alive(ex)) await createItemWithSets(database, workout, ex, pos++, now);
+  }
+  return workout;
+}
+
+/**
+ * Logs a past workout (backfill). It is created as already finished, so it never blocks
+ * a live workout; `finalizeWorkout` drops whatever was not completed when editing ends.
+ */
+export async function createBackfillWorkout(planDayId: string, date: string, database: TrainingsDB = db): Promise<Workout> {
+  return database.transaction(
+    'rw',
+    [database.workouts, database.workoutItems, database.sets, database.planDayItems, database.exercises],
+    async () => {
+      const now = Date.now();
+      const [y, m, d] = date.split('-').map(Number);
+      const noon = new Date(y, m - 1, d, 12).getTime();
+      return createFromPlan(database, planDayId, {
+        ...meta(now),
+        planDayId,
+        date,
+        startedAt: noon,
+        finishedAt: noon,
+        note: '',
+        status: 'done',
+      });
+    },
+  );
+}
+
+/** Ends editing of a finished workout: drop unfinished sets; delete the workout if nothing is left. */
+export async function finalizeWorkout(workoutId: string, database: TrainingsDB = db): Promise<'kept' | 'deleted'> {
+  const w = await database.workouts.get(workoutId);
+  if (!w) return 'deleted';
+  if (w.status === 'active') return 'kept';
+  const now = Date.now();
+  let completed = 0;
+  await database.transaction('rw', [database.workouts, database.workoutItems, database.sets], async () => {
+    const items = (await database.workoutItems.where('workoutId').equals(workoutId).toArray()).filter(alive);
+    for (const it of items) {
+      for (const s of (await database.sets.where('workoutItemId').equals(it.id).toArray()).filter(alive)) {
+        if (s.completedAt == null) await database.sets.update(s.id, { deletedAt: now, updatedAt: now });
+        else completed++;
+      }
+    }
+  });
+  if (completed === 0) {
+    await discardWorkout(workoutId, database);
+    return 'deleted';
+  }
+  return 'kept';
+}
+
+export async function updateWorkout(id: string, changes: Partial<Pick<Workout, 'date' | 'note'>>, database: TrainingsDB = db) {
+  await database.workouts.update(id, { ...changes, updatedAt: Date.now() });
+}
+
+export async function toggleRestDay(date: string, database: TrainingsDB = db) {
+  const existing = (await database.restDays.where('date').equals(date).toArray()).filter(alive);
+  const now = Date.now();
+  if (existing.length) {
+    for (const r of existing) await database.restDays.update(r.id, { deletedAt: now, updatedAt: now });
+  } else {
+    await database.restDays.add({ ...meta(now), date, note: '' });
+  }
 }
 
 export async function addExerciseToWorkout(workoutId: string, exerciseId: string, database: TrainingsDB = db) {
   await database.transaction('rw', [database.workouts, database.workoutItems, database.sets, database.exercises], async () => {
     const ex = await database.exercises.get(exerciseId);
-    if (!ex) return;
+    const workout = await database.workouts.get(workoutId);
+    if (!ex || !workout) return;
     const items = (await database.workoutItems.where('workoutId').equals(workoutId).toArray()).filter(alive);
     const pos = items.reduce((m, i) => Math.max(m, i.position + 1), 0);
-    await createItemWithSets(database, workoutId, ex, pos, Date.now());
+    await createItemWithSets(database, workout, ex, pos, Date.now());
   });
 }
 
