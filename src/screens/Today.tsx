@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { localDate } from '../db/ids';
 import { useLastDoneWorkout, usePlanDay, usePlanDays } from '../db/queries';
 import { addDays, projectSchedule, type Slot } from '../domain/cycle';
-import { parseLocalDate, splitDayName, targetLabel, weekdayShort } from '../domain/format';
+import { parseLocalDate, dayLabel, dayTag, targetLabel, weekdayShort } from '../domain/format';
 import type { PlanDay } from '../domain/types';
 import { IconMoon } from '../components/Icons';
 import './today.css';
@@ -49,12 +49,12 @@ export function Today() {
           <p className="eyebrow">Next workout</p>
           <div className="next-head">
             <span className={`dot ${next.day.color}`} />
-            <span className="next-short">{splitDayName(next.day.name).short}</span>
+            <span className="next-short">{dayLabel(next.day)}</span>
             {nextWorkout && nextWorkout.date !== today && (
               <span className="next-when">{weekdayShort(nextWorkout.date)}</span>
             )}
           </div>
-          <h2 className="next-title">{splitDayName(next.day.name).title || next.day.name}</h2>
+          <h2 className="next-title">{next.day.name}</h2>
           <div className="list">
             {next.exercises.map((e) => (
               <div className="row" key={e.id}>
@@ -84,7 +84,7 @@ function WeekStrip({ slots, dayById, today }: { slots: Slot[]; dayById: Map<stri
               <span className="week-wd">{weekdayShort(s.date).slice(0, 2)}</span>
               <span className="week-num num">{parseLocalDate(s.date).getDate()}</span>
               {day ? (
-                <span className={`week-tag ${day.color}`}>{splitDayName(day.name).short.replace('Day ', 'D')}</span>
+                <span className={`week-tag ${day.color}`}>{dayTag(day)}</span>
               ) : (
                 <span className="week-tag rest">Rest</span>
               )}

@@ -1,6 +1,6 @@
 # PROJECT_STATUS – Trainings Log
 
-_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 1_
+_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 2_
 
 Konzept: siehe `KONZEPT.md` im Claude-Projekt „Trainings Log“ (Phase 2, freigegeben).
 
@@ -41,11 +41,24 @@ public/     icon.svg + PNG-Icons
 
 **Tests:** 8/8 grün (Zyklus, Seed). Build und Typprüfung sauber. Screenshots im iPhone- und Desktop-Viewport geprüft.
 
+## AP2 – Plan-Editor & Übungsbibliothek ✅
+**Implementiert**
+- Tage: hinzufügen, umbenennen, Farbe wählen, im Zyklus verschieben, löschen (mit zweitem Tipp zur Bestätigung; alte Trainings bleiben erhalten)
+- „Day N“ wird aus der Position berechnet, der Name ist nur der Titel. Nach dem Verschieben bleiben die Nummern dadurch korrekt.
+- Übungen pro Tag: hinzufügen (aus der Bibliothek oder neu anlegen), entfernen, nach oben oder unten verschieben
+- Übungsbibliothek: Liste, neue Übung, archivieren und wiederherstellen. Archivieren entfernt die Übung aus allen Tagen, die Historie bleibt.
+- Übungseditor mit Autosave:
+  - Typ (Weight / Bodyweight / Slow tempo), Seiten getrennt, Gewicht pro Hantel
+  - Sätze, Wiederholungsspanne, Zielzeit, Sekunden pro Phase, Gewichtsschritt, Pause
+  - Gewichtung der Muskelgruppen (–/½/1), dauerhafte Notiz
+- Neue Dateien: `db/plan.ts` (+test), `screens/Exercises.tsx`, `components/Form.tsx` (Stepper, Segmented, Toggle, Sheet, CommitInput), `form.css`, `profile.css`
+
+**Tests:** 12/12 grün. Klickpfad im iPhone-Viewport durchgespielt: Übung verschieben, aus der Bibliothek hinzufügen, Editor öffnen.
+
 ## Offen
-- Hosting-Konto (GitHub oder Vercel) fehlt noch vom Nutzer
+- GitHub-Repo `trainings-log` (Public) muss der Nutzer anlegen, danach Push und GitHub Pages
 - Supabase-Projekt noch nicht angelegt (AP9)
 - History und Progress zeigen bis AP5/AP7 nur leere Zustände; der Start-Button folgt mit AP3
 
 ## Nächster Schritt
-**AP2 – Übungsbibliothek und Plan-Editor**: Tage und Übungen hinzufügen, entfernen, verschieben, umbenennen; Übungseinstellungen (Typ, Spanne, Sätze, Pause, Steigerung, Muskeln, Notiz).
-Danach **AP3 – Workout-Tracking**.
+**AP3 – Workout-Tracking**: Training starten, Sätze mit Werten der letzten Ausführung vorausfüllen, Vorwerte anzeigen, abhaken und sperren, Sätze hinzufügen und löschen, einseitige Übungen, Absturzsicherheit, Gewichtsvorschlag.

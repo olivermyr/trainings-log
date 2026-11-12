@@ -24,8 +24,11 @@ export function parseLocalDate(date: string): Date {
 export const weekdayShort = (date: string) => WEEKDAY.format(parseLocalDate(date));
 export const dayMonth = (date: string) => DAY_MONTH.format(parseLocalDate(date));
 
-/** "Day 2 – Chest, Back & Abs" → { short: "Day 2", title: "Chest, Back & Abs" } */
-export function splitDayName(name: string): { short: string; title: string } {
-  const m = name.match(/^(.+?)\s+[–-]\s+(.+)$/);
-  return m ? { short: m[1], title: m[2] } : { short: name, title: '' };
+/** Plan days are numbered by their position, so reordering keeps "Day 1…N" consistent. */
+export const dayLabel = (d: { position: number }) => `Day ${d.position + 1}`;
+export const dayTag = (d: { position: number }) => `D${d.position + 1}`;
+
+export function formatKg(n: number | null | undefined): string {
+  if (n == null) return '–';
+  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, '');
 }

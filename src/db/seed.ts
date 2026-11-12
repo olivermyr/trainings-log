@@ -43,12 +43,12 @@ const EXERCISES: ExerciseSeed[] = [
 const LEGS = ['squat', 'rdl', 'calf', 'absMachine', 'crunches', 'pallof'];
 
 const DAYS: { name: string; color: DayColor; items: string[] }[] = [
-  { name: 'Day 1 – Arms & Shoulders', color: 'arms', items: ['incCurl', 'incHammer', 'ohTri', 'latMachine', 'shPress'] },
-  { name: 'Day 2 – Chest, Back & Abs', color: 'push', items: ['bench', 'incDbBench', 'pulldown', 'wideRow', 'facePull', 'absMachine', 'crunches', 'twists'] },
-  { name: 'Day 3 – Legs & Abs', color: 'legs', items: LEGS },
-  { name: 'Day 4 – Arms & Shoulders', color: 'arms', items: ['preacher', 'incHammer', 'saPushdown', 'cableLat', 'shPress'] },
-  { name: 'Day 5 – Chest, Back & Abs', color: 'push', items: ['bench', 'flys', 'pulldown', 'closeRow', 'facePull', 'absMachine', 'crunches', 'twists'] },
-  { name: 'Day 6 – Legs & Abs', color: 'legs', items: LEGS },
+  { name: 'Arms & Shoulders', color: 'arms', items: ['incCurl', 'incHammer', 'ohTri', 'latMachine', 'shPress'] },
+  { name: 'Chest, Back & Abs', color: 'push', items: ['bench', 'incDbBench', 'pulldown', 'wideRow', 'facePull', 'absMachine', 'crunches', 'twists'] },
+  { name: 'Legs & Abs', color: 'legs', items: LEGS },
+  { name: 'Arms & Shoulders', color: 'arms', items: ['preacher', 'incHammer', 'saPushdown', 'cableLat', 'shPress'] },
+  { name: 'Chest, Back & Abs', color: 'push', items: ['bench', 'flys', 'pulldown', 'closeRow', 'facePull', 'absMachine', 'crunches', 'twists'] },
+  { name: 'Legs & Abs', color: 'legs', items: LEGS },
 ];
 
 function buildExercise(s: ExerciseSeed, now: number): Exercise {

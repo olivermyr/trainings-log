@@ -8,6 +8,7 @@ import { Shell } from './components/Shell';
 import { Today } from './screens/Today';
 import { History, Progress } from './screens/Placeholders';
 import { PlanDayDetail, Profile } from './screens/Profile';
+import { ExerciseEditor, ExerciseList } from './screens/Exercises';
 import './styles/tokens.css';
 import './styles/base.css';
 
@@ -21,6 +22,8 @@ const router = createHashRouter([
       { path: '/progress', element: <Progress /> },
       { path: '/profile', element: <Profile /> },
       { path: '/profile/day/:id', element: <PlanDayDetail /> },
+      { path: '/profile/exercises', element: <ExerciseList /> },
+      { path: '/profile/exercise/:id', element: <ExerciseEditor /> },
     ],
   },
 ]);
