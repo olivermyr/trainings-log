@@ -91,7 +91,11 @@ export function startSync() {
   supabase.auth.onAuthStateChange((event, session) => {
     set({ email: session?.user.email ?? null });
     if (event === 'SIGNED_IN') schedule(100);
-    if (event === 'SIGNED_OUT') set({ state: 'signed-out', lastSyncAt: null });
+    if (event === 'SIGNED_OUT') {
+      set({ state: 'signed-out', lastSyncAt: null });
+      // Next sign-in (possibly another account) starts with a fresh first sync.
+      void db.settings.delete('sync.state');
+    }
   });
   void syncNow();
 }

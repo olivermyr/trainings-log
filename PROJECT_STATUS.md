@@ -1,6 +1,6 @@
 # PROJECT_STATUS – Trainings Log
 
-_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 9_
+_Letzte Aktualisierung: 12.11.2026 · nach Arbeitspaket 10 (Komplettprüfung)_
 
 Konzept: siehe `KONZEPT.md` im Claude-Projekt „Trainings Log“ (Phase 2, freigegeben).
 
@@ -197,17 +197,40 @@ public/     icon.svg + PNG-Icons
 **Tests:** 67/67 grün, darunter Sync zwischen zwei Geräten mit Fake-Remote: Erstsync ohne Duplikate, Änderungen in beide Richtungen, Last-Write-Wins, Soft-Deletes, Filter für Einstellungen, nur geänderte Zeilen werden gepusht. JSON-Roundtrip und CSV getestet.
 **Nicht testbar aus der Sandbox:** echter Netzwerkzugriff auf supabase.co (Proxy blockiert). Der Live-Login muss beim Nutzer verifiziert werden.
 
+## AP10 – Komplettprüfung & Verbesserungen ✅
+**Gefundene und behobene Fehler**
+- Pausentimer und Stoppuhr blieben nach „Finish“ oder „Discard“ gespeichert, sodass das nächste Training mit „Rest over +40:00“ startete. Jetzt räumen `startWorkout`, `finishWorkout` und `discardWorkout` beide auf (Test vorhanden).
+- Race beim schnellen Eintippen: Wurde direkt nach der Eingabe ✓ getippt, war der Wert noch nicht in den Props angekommen. Das ✓ setzte dann den Fokus erneut, statt den Satz abzuhaken. `tryComplete` liest jetzt den gespeicherten Satz aus IndexedDB (die Reihenfolge ist durch IndexedDB garantiert).
+- Ein erledigter Satz konnte beim Bearbeiten mit leeren Feldern geschlossen werden, das hätte Statistiken mit `reps = null` erzeugt. Jetzt gilt beim Bearbeiten dieselbe Prüfung wie beim Abhaken.
+- App-Updates luden die Seite mitten im Training neu (`autoUpdate`). Jetzt `prompt` plus `applyIfSafe`: Ein Update wird nur angewendet, wenn kein Training läuft und kein Feld fokussiert ist, oder wenn die App im Hintergrund ist.
+- Nach dem Abmelden blieb `sync.state` bestehen; eine Anmeldung mit einem anderen Konto hätte den Erstsync übersprungen. Wird jetzt beim Sign-out zurückgesetzt.
+- Body-Formular: Das Datum wird beim Öffnen neu gesetzt (die App kann über Mitternacht offen bleiben).
+- Kontrast: Informativer Kleintext (Spalte LAST, Achsen, Vergleichshinweise, Wochentage) nutzt jetzt `--text-2` statt `--text-3` (vorher etwa 2:1).
+- Bei 320px Breite brachen die Buttons „Remove Set“ um.
+
+**Verbesserungen**
+- Today zeigt pro Übung des nächsten Trainings die letzte Einheit („Last 80 kg × 10 · 9 · 8“). Der Übungskopf im Training nutzt dieselbe Kurzform (`compactSets`).
+- Stoppuhr: Die Markierung zeigt jetzt die **Bestzeit beim gleichen Zusatzgewicht**. Live-Hinweis „New best“, sobald sie übertroffen wird.
+- Warnung im Übungseditor, wenn der Typ einer bereits geloggten Übung geändert wird
+- Hinweis auf Today, wenn ein Training länger als 6 h offen ist
+- README
+
+**Regressionstest** (`/home/claude/shots/regress.py`, Playwright gegen den Production-Build): 32/32 PASS, keine Konsolenfehler. Abgedeckt:
+- Zyklus-Anker, schnelles Abhaken, Bearbeitungsprüfung, Pause bei einseitigen Übungen erst nach R
+- Finish → Zusammenfassung → nächster Tag ohne alten Timer, Discard, Vorausfüllen und Vorschlag
+- History mit Detail und Edit, alle Progress-Ansichten, Body, CSV-Export
+- kein horizontaler Überlauf bei 402px, 1440px und 320px
+
+**Unit-Tests:** 69/69 grün
+
 ## Offen
-- Live-Test von Login und Sync auf dem iPhone durch den Nutzer
-- Die Stoppuhr zeigt „Last“ (letzter Wert), nicht den Bestwert
+- Live-Test von Login und Sync auf dem iPhone durch den Nutzer; die E-Mail-Templates müssen den `{{ .Token }}` enthalten
 - Bundle 217 kB gzip (Supabase-Client); Code-Splitting wäre möglich, ist aber nicht nötig, weil alles vorab gecacht wird
 
 ## Deployment
 GitHub `olivermyr/trainings-log` → Actions-Workflow (Tests, Build) → GitHub Pages: https://olivermyr.github.io/trainings-log/
 
 ## Nächster Schritt
-**AP10 – Testing, Feinschliff, Abschluss**:
-- systematischer Durchlauf aller Abläufe (iPhone- und Desktop-Viewport), Rückmeldungen des Nutzers aus echten Trainings einarbeiten
-- Stoppuhr: Bestwert statt letztem Wert
-- UX-Feinschliff, Barrierefreiheit (Fokus, Labels), Performance
-- README für das Repo
+Alle geplanten Arbeitspakete sind abgeschlossen. Als Nächstes Rückmeldungen aus echten Trainings einarbeiten. Ideen (nur auf Wunsch):
+- iOS-Kurzbefehl, der Ruhepuls, HRV und Schlaf aus Apple Health überträgt
+- Aufwärmsätze markieren (Feld `isWarmup` existiert bereits)

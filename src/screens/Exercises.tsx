@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db/db';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useExercise, useExerciseUsage, useExercises } from '../db/queries';
 import { archiveExercise, createExercise, defaultsForType, restoreExercise, updateExercise } from '../db/plan';
@@ -80,6 +82,7 @@ export function ExerciseEditor() {
   const navigate = useNavigate();
   const ex = useExercise(id);
   const usage = useExerciseUsage(id);
+  const logged = useLiveQuery(async () => (id ? (await db.workoutItems.where('exerciseId').equals(id).filter((i) => i.deletedAt == null).count()) : 0), [id]);
   const [confirmArchive, setConfirmArchive] = useState(false);
 
   if (ex === undefined) return null;
@@ -137,6 +140,9 @@ export function ExerciseEditor() {
             </FieldRow>
           )}
         </div>
+        {(logged ?? 0) > 0 && (
+          <p className="type-hint warn">Already logged {logged}×. Changing the type changes how past sets are counted.</p>
+        )}
         <p className="type-hint">
           {timed
             ? 'One timed set. A tempo bar paces each phase.'

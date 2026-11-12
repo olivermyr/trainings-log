@@ -49,6 +49,11 @@ export async function getPreviousPerformance(
   return null;
 }
 
+/** Rest timer and stopwatch belong to the live workout; they must not leak into the next one. */
+async function clearTimers(database: TrainingsDB) {
+  await database.settings.bulkDelete(['restTimer', 'stopwatch']);
+}
+
 export async function getActiveWorkout(database: TrainingsDB = db): Promise<Workout | null> {
   const active = (await database.workouts.where('status').equals('active').toArray()).filter(alive);
   return active.sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
@@ -77,10 +82,11 @@ function toSet(v: SetValues, workoutItemId: string, now: number): WorkoutSet {
 export async function startWorkout(planDayId: string, database: TrainingsDB = db): Promise<Workout> {
   return database.transaction(
     'rw',
-    [database.workouts, database.workoutItems, database.sets, database.planDayItems, database.exercises],
+    [database.workouts, database.workoutItems, database.sets, database.planDayItems, database.exercises, database.settings],
     async () => {
       const existing = await getActiveWorkout(database);
       if (existing) return existing;
+      await clearTimers(database);
       const now = Date.now();
       return createFromPlan(database, planDayId, {
         ...meta(now),
@@ -244,7 +250,7 @@ export async function updateWorkoutItemNote(itemId: string, note: string, databa
  * Returns false if nothing was completed (caller should offer discard instead).
  */
 export async function finishWorkout(workoutId: string, database: TrainingsDB = db): Promise<boolean> {
-  return database.transaction('rw', [database.workouts, database.workoutItems, database.sets], async () => {
+  return database.transaction('rw', [database.workouts, database.workoutItems, database.sets, database.settings], async () => {
     const items = (await database.workoutItems.where('workoutId').equals(workoutId).toArray()).filter(alive);
     const now = Date.now();
     let completed = 0;
@@ -257,13 +263,16 @@ export async function finishWorkout(workoutId: string, database: TrainingsDB = d
     }
     if (completed === 0) return false;
     await database.workouts.update(workoutId, { status: 'done', finishedAt: now, updatedAt: now });
+    await clearTimers(database);
     return true;
   });
 }
 
 export async function discardWorkout(workoutId: string, database: TrainingsDB = db) {
-  await database.transaction('rw', [database.workouts, database.workoutItems, database.sets], async () => {
+  await database.transaction('rw', [database.workouts, database.workoutItems, database.sets, database.settings], async () => {
     const now = Date.now();
+    const w = await database.workouts.get(workoutId);
+    if (w?.status === 'active') await clearTimers(database);
     const items = await database.workoutItems.where('workoutId').equals(workoutId).toArray();
     for (const it of items) {
       await database.workoutItems.update(it.id, { deletedAt: now, updatedAt: now });

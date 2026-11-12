@@ -57,7 +57,7 @@
 .week-tag.arms { color: var(--day-arms); }
 .week-tag.push { color: var(--day-push); }
 .week-tag.legs { color: var(--day-legs); }
-.week-tag.rest { color: var(--text-3); }
+.week-tag.rest { color: var(--text-2); }
 
 .next-head {
   display: flex;
@@ -93,4 +93,10 @@
   min-height: var(--touch);
   color: var(--accent);
   font-size: var(--fs-subhead);
+}
+
+.stale-note {
+  margin: calc(-1 * var(--s-2)) var(--s-1) var(--s-4);
+  font-size: var(--fs-footnote);
+  color: var(--accent);
 }

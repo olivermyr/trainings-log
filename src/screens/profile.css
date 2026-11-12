@@ -118,3 +118,7 @@
   letter-spacing: 6px;
   text-align: center;
 }
+
+.type-hint.warn {
+  color: var(--accent);
+}

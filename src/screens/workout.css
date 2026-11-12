@@ -173,7 +173,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: var(--text-3);
+  color: var(--text-2);
   padding: 0 0 var(--s-1);
 }
 
@@ -201,7 +201,7 @@
 
 .set-prev {
   font-size: var(--fs-subhead);
-  color: var(--text-3);
+  color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -468,5 +468,15 @@
   from {
     opacity: 0;
     transform: scale(0.6);
+  }
+}
+
+.ex-actions button {
+  white-space: nowrap;
+}
+
+@media (max-width: 370px) {
+  .ex-actions button {
+    font-size: 12px;
   }
 }

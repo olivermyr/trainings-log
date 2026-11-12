@@ -24,7 +24,7 @@
 }
 
 .chart .axis {
-  fill: var(--text-3);
+  fill: var(--text-2);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }

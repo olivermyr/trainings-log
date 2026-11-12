@@ -4,6 +4,7 @@ import { createHashRouter, RouterProvider } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { requestPersistentStorage } from './db/db';
 import { seedIfEmpty } from './db/seed';
+import { getActiveWorkout } from './db/workout';
 import { startSync } from './sync';
 import { Shell } from './components/Shell';
 import { Today } from './screens/Today';
@@ -47,7 +48,21 @@ async function boot() {
   }
   await seedIfEmpty();
   void requestPersistentStorage();
-  registerSW({ immediate: true });
+  // App updates are applied at a safe moment: never in the middle of a workout or while typing.
+  let pending = false;
+  const updateSW = registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      pending = true;
+      void applyIfSafe();
+    },
+  });
+  async function applyIfSafe() {
+    if (!pending) return;
+    const typing = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement;
+    if (document.visibilityState === 'hidden' || (!typing && !(await getActiveWorkout()))) void updateSW(true);
+  }
+  document.addEventListener('visibilitychange', () => void applyIfSafe());
   startSync();
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

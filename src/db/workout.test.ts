@@ -88,6 +88,18 @@ describe('workout tracking', () => {
     expect(sets.map((s) => [s.weight, s.reps])).toEqual([[80, 10], [80, 9], [80, 9]]);
   });
 
+  it('finishing clears the rest timer and stopwatch', async () => {
+    const w = await startWorkout((await days())[0].id, db);
+    await db.settings.put({ key: 'restTimer', value: { endsAt: 1 }, updatedAt: 1 });
+    await db.settings.put({ key: 'stopwatch', value: { setId: 'x', startedAt: 1 }, updatedAt: 1 });
+    const { sets } = await itemSets(w.id, 'Incline Dumbbell Curls');
+    await updateSet(sets[0].id, { weight: 14, reps: 10 }, db);
+    await completeSet(sets[0].id, db);
+    await finishWorkout(w.id, db);
+    expect(await db.settings.get('restTimer')).toBeUndefined();
+    expect(await db.settings.get('stopwatch')).toBeUndefined();
+  });
+
   it('a workout with no completed sets cannot be finished; discard removes it', async () => {
     const w = await startWorkout((await days())[0].id, db);
     expect(await finishWorkout(w.id, db)).toBe(false);

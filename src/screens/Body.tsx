@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   addCustomMetric,
@@ -100,6 +100,9 @@ function AddCustomMetric() {
 function LogSheet({ open, onClose, defs }: { open: boolean; onClose: () => void; defs: MetricDef[] }) {
   const [date, setDate] = useState(localDate());
   const [values, setValues] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (open) setDate(localDate()); // the app may stay open across midnight
+  }, [open]);
   const parsed = useMemo(() => {
     const out: Record<string, number> = {};
     for (const d of defs) {

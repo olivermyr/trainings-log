@@ -16,12 +16,14 @@ export function StopwatchOverlay({
   set,
   exercise: ex,
   last,
+  best,
   manualOnly = false,
   onClose,
 }: {
   set: WorkoutSet;
   exercise: Exercise;
   last: number | null;
+  best: number | null;
   manualOnly?: boolean;
   onClose: (saved: boolean) => void;
 }) {
@@ -50,11 +52,13 @@ export function StopwatchOverlay({
     const st = tempoState(sw, now, tempo);
     const elapsedS = Math.max(0, st.elapsedMs / 1000);
     const hit = elapsedS >= target;
+    const beatBest = best != null && elapsedS > best && !hit;
     return (
       <div className={`sw sw-running${hit ? ' hit' : ''}`} role="dialog" aria-label={`${ex.name} stopwatch`}>
         <div className="sw-top">
           <span className="sw-name">{ex.name}</span>
-          <span className="sw-reps num">{st.reps} reps</span>
+          <span className="sw-reps num">{beatBest && <span className="sw-pr">New best · </span>}
+            {st.reps} reps</span>
         </div>
 
         {st.phase === 'lead-in' ? (
@@ -65,10 +69,10 @@ export function StopwatchOverlay({
 
         <div className="sw-progress" aria-hidden="true">
           <span className="sw-progress-fill" style={{ width: `${Math.min(100, (elapsedS / target) * 100)}%` }} />
-          {last != null && last < target && <span className="sw-mark" style={{ left: `${(last / target) * 100}%` }} />}
+          {best != null && best < target && <span className="sw-mark" style={{ left: `${(best / target) * 100}%` }} />}
         </div>
         <div className="sw-progress-labels num">
-          <span>{last != null ? `Last ${formatDuration(last)}` : ''}</span>
+          <span>{best != null ? `Best ${formatDuration(best)}` : ''}</span>
           <span>Goal {formatDuration(target)}</span>
         </div>
 
@@ -103,7 +107,9 @@ export function StopwatchOverlay({
       </div>
       <h2 className="sw-title">{ex.name}</h2>
       <p className="sw-subtitle num">
-        Goal {formatDuration(target)} · {tempo}s down / {tempo}s up{last != null && ` · Last ${formatDuration(last)}`}
+        Goal {formatDuration(target)} · {tempo}s down / {tempo}s up
+        {last != null && ` · Last ${formatDuration(last)}`}
+        {best != null && best !== last && ` · Best ${formatDuration(best)}`}
       </p>
 
       <div className="list sw-fields">

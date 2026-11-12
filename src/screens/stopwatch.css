@@ -239,3 +239,8 @@
 .sw-stop:active {
   background: var(--surface-2);
 }
+
+.sw-pr {
+  color: var(--accent);
+  font-weight: 700;
+}

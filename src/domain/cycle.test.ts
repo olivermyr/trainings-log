@@ -67,3 +67,15 @@ describe('cycle anchor', () => {
     expect(nextPlanDayId(days, null, '2026-11-14', { date: '2026-11-12', planDayId: 'd4' })).toBe('d4');
   });
 });
+
+import { compactSets } from './format';
+describe('compactSets', () => {
+  const s = (weight: number | null, reps: number | null, side: 'L' | 'R' | null = null, durationS: number | null = null) => ({ weight, reps, side, durationS });
+  it('summarises sessions compactly', () => {
+    expect(compactSets({ type: 'weight_reps' }, [s(80, 10), s(80, 9), s(80, 8)])).toBe('80 kg × 10 · 9 · 8');
+    expect(compactSets({ type: 'weight_reps' }, [s(82.5, 8), s(80, 9)])).toBe('82.5×8 · 80×9');
+    expect(compactSets({ type: 'weight_reps' }, [s(15, 12, 'L'), s(15, 10, 'R')])).toBe('15 kg × 12');
+    expect(compactSets({ type: 'bodyweight_reps' }, [s(null, 20), s(null, 18)])).toBe('20 · 18 reps');
+    expect(compactSets({ type: 'timed_tempo' }, [s(40, null, null, 161)])).toBe('2:41 @ 40 kg');
+  });
+});

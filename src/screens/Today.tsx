@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { localDate } from '../db/ids';
-import { useActiveWorkout, useCycleAnchor, useLastDoneWorkout, usePlanDay, usePlanDays } from '../db/queries';
+import { useActiveWorkout, useCycleAnchor, useLastDoneWorkout, useLastSessions, usePlanDay, usePlanDays } from '../db/queries';
 import { startWorkout } from '../db/workout';
 import { Sheet } from '../components/Form';
 import { addDays, projectSchedule, type Slot } from '../domain/cycle';
-import { parseLocalDate, dayLabel, dayTag, targetLabel, weekdayShort } from '../domain/format';
+import { compactSets, dayLabel, dayTag, parseLocalDate, targetLabel, weekdayShort } from '../domain/format';
 import type { PlanDay } from '../domain/types';
 import { IconMoon } from '../components/Icons';
 import './today.css';
@@ -31,6 +31,7 @@ export function Today() {
   const restToday = slots[0]?.kind === 'rest' && slots[0].date === today;
   const next = usePlanDay(nextWorkout?.kind === 'workout' ? nextWorkout.planDayId : undefined);
   const active = useActiveWorkout();
+  const lastSessions = useLastSessions(next?.exercises.map((e) => e.id) ?? []);
   const navigate = useNavigate();
   const [choosing, setChoosing] = useState(false);
 
@@ -68,9 +69,16 @@ export function Today() {
           </div>
           <h2 className="next-title">{next.day.name}</h2>
           {active ? (
-            <button className="btn-primary today-cta" onClick={() => navigate('/workout')}>
-              Resume Workout
-            </button>
+            <>
+              <button className="btn-primary today-cta" onClick={() => navigate('/workout')}>
+                Resume Workout
+              </button>
+              {Date.now() - active.startedAt > 6 * 3600_000 && (
+                <p className="stale-note">
+                  Started {weekdayShort(active.date)} and still open. Finish or discard it so the cycle stays accurate.
+                </p>
+              )}
+            </>
           ) : (
             <button className="btn-primary today-cta" onClick={() => start(next.day.id)}>
               Start Workout
@@ -81,6 +89,7 @@ export function Today() {
               <div className="row" key={e.id}>
                 <div className="row-main">
                   <div className="row-title">{e.name}</div>
+                  {lastSessions?.get(e.id) && <div className="row-sub num">Last {compactSets(e, lastSessions.get(e.id)!.sets)}</div>}
                 </div>
                 <span className="row-value num">{targetLabel(e)}</span>
               </div>

@@ -16,7 +16,8 @@ import {
   updateWorkoutItemNote,
 } from '../db/workout';
 import { localDate } from '../db/ids';
-import { dayLabel, dayMonth, formatDuration, formatKg, targetLabel, weekdayShort } from '../domain/format';
+import { db } from '../db/db';
+import { compactSets, dayLabel, dayMonth, formatDuration, formatKg, targetLabel, weekdayShort } from '../domain/format';
 import { parseNumber, previousFor, progressionSuggestion } from '../domain/workout';
 import type { Exercise, WorkoutSet } from '../domain/types';
 import { CommitInput, Sheet } from '../components/Form';
@@ -166,6 +167,7 @@ function WorkoutEditor({ workoutId, live }: { workoutId: string; live: boolean }
             set={overlaySet}
             exercise={overlayEntry.exercise}
             last={overlayEntry.previous?.sets[0]?.durationS ?? null}
+            best={bestTimeAt(overlayEntry.history, overlaySet.weight ?? 0)}
             manualOnly={!live}
             onClose={(saved) => {
               setTimedSetId(null);
@@ -222,6 +224,13 @@ function WorkoutEditor({ workoutId, live }: { workoutId: string; live: boolean }
   );
 }
 
+/** Longest earlier time at exactly this added weight (null if never done at this weight). */
+function bestTimeAt(history: WorkoutSet[][], weight: number): number | null {
+  let best: number | null = null;
+  for (const sets of history) for (const s of sets) if ((s.weight ?? 0) === weight && s.durationS != null) best = Math.max(best ?? 0, s.durationS);
+  return best;
+}
+
 function DiscardButton({ onDiscard }: { onDiscard: () => void }) {
   const [confirm, setConfirm] = useState(false);
   return (
@@ -264,7 +273,7 @@ function ExerciseBlock({
           <div className="ex-name">{ex.name}</div>
           <div className="ex-meta num">
             {targetLabel(ex)}
-            {previous && !expanded && <> · Last {summarizeSets(ex, previous.sets)}</>}
+            {previous && !expanded && <> · Last {compactSets(ex, previous.sets)}</>}
           </div>
         </div>
         {prs.length > 0 && <span className="pr-chip">PR</span>}
@@ -348,16 +357,6 @@ function ExerciseBlock({
   );
 }
 
-function summarizeSets(ex: Exercise, sets: WorkoutSet[]): string {
-  if (ex.type === 'timed_tempo') {
-    const s = sets[0];
-    return s ? `${formatDuration(s.durationS ?? 0)}${s.weight ? ` @ ${formatKg(s.weight)} kg` : ''}` : '';
-  }
-  const top = sets.filter((s) => s.side !== 'R')[0];
-  if (!top) return '';
-  return ex.type === 'bodyweight_reps' && !top.weight ? `${top.reps} reps` : `${formatKg(top.weight)} × ${top.reps}`;
-}
-
 function prevLabel(ex: Exercise, p: WorkoutSet | { weight: number | null; reps: number | null; durationS: number | null } | undefined) {
   if (!p) return '–';
   if (ex.type === 'timed_tempo') return formatDuration(p.durationS ?? 0);
@@ -393,17 +392,20 @@ function SetRow({
   const label = `${set.position + 1}${set.side ?? ''}`;
 
   const tryComplete = async () => {
+    // Read the stored values: a value typed a moment ago may not have reached the props yet.
+    // IndexedDB orders this read after the pending write of that input.
+    const fresh = (await db.sets.get(set.id)) ?? set;
+    if (timed) {
+      if (fresh.durationS == null) return onOpenTimed();
+    } else {
+      if (ex.type === 'weight_reps' && fresh.weight == null) return weightRef.current?.focus();
+      if (fresh.reps == null) return repsRef.current?.focus();
+    }
+    (document.activeElement as HTMLElement | null)?.blur();
     if (completed) {
       setEditing(false);
       return;
     }
-    if (timed) {
-      if (set.durationS == null) return onOpenTimed();
-    } else {
-      if (ex.type === 'weight_reps' && set.weight == null) return weightRef.current?.focus();
-      if (set.reps == null) return repsRef.current?.focus();
-    }
-    (document.activeElement as HTMLElement | null)?.blur();
     await completeSet(set.id);
     if (live) void maybeStartRestAfter(set, ex);
     onCompleted();

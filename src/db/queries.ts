@@ -98,6 +98,8 @@ export interface WorkoutEntry {
   previous: PreviousPerformance | null;
   /** Records set in this workout, compared with all earlier sessions. */
   prs: PR[];
+  /** Completed sets of every earlier session of this exercise. */
+  history: WorkoutSet[][];
 }
 
 export interface DayComparison {
@@ -129,8 +131,9 @@ export function useWorkoutDetail(workoutId: string | undefined): WorkoutDetail |
       if (!exercise) continue;
       const sets = sortSets((await db.sets.where('workoutItemId').equals(item.id).toArray()).filter(alive));
       const previous = await getPreviousPerformance(exercise.id, workout);
-      const prs = detectPRs(exercise, await getExerciseSessions(exercise.id, workout), sets);
-      entries.push({ item, exercise, sets, previous, prs });
+      const history = await getExerciseSessions(exercise.id, workout);
+      const prs = detectPRs(exercise, history, sets);
+      entries.push({ item, exercise, sets, previous, prs, history });
     }
     return { workout, planDay, entries, compare: await compareWithPrevious(workout) };
   }, [workoutId]);
@@ -229,4 +232,17 @@ export function useLoggedWorkouts(): LoggedWorkout[] | undefined {
         .filter((e) => e.exercise && e.sets.length > 0),
     }));
   }, []);
+}
+
+/** Last completed session per exercise (for "Last time" hints before a workout). */
+export function useLastSessions(exerciseIds: string[]): Map<string, PreviousPerformance> | undefined {
+  const key = exerciseIds.join(',');
+  return useLiveQuery(async () => {
+    const out = new Map<string, PreviousPerformance>();
+    for (const id of exerciseIds) {
+      const p = await getPreviousPerformance(id, null);
+      if (p) out.set(id, p);
+    }
+    return out;
+  }, [key]);
 }
