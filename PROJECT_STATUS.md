@@ -215,7 +215,7 @@ public/     icon.svg + PNG-Icons
 - Hinweis auf Today, wenn ein Training länger als 6 h offen ist
 - README
 
-**Regressionstest** (`/home/claude/shots/regress.py`, Playwright gegen den Production-Build): 32/32 PASS, keine Konsolenfehler. Abgedeckt:
+**Regressionstest** (`e2e/regress.py`, erwartet `vite preview` auf Port 4173, Playwright gegen den Production-Build): 32/32 PASS, keine Konsolenfehler. Abgedeckt:
 - Zyklus-Anker, schnelles Abhaken, Bearbeitungsprüfung, Pause bei einseitigen Übungen erst nach R
 - Finish → Zusammenfassung → nächster Tag ohne alten Timer, Discard, Vorausfüllen und Vorschlag
 - History mit Detail und Edit, alle Progress-Ansichten, Body, CSV-Export
